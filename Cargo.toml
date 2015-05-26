@@ -1,0 +1,7 @@
+[package]
+name = "smallpt"
+version = "0.1.0"
+authors = ["MJohnson459 <mjohnson459@gmail.com>"]
+
+[dependencies]
+rand = "*"
