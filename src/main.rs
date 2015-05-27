@@ -5,21 +5,9 @@ use std::f64;
 
 use std::ops::{Add,Sub,Mul,Div,Rem};
 use std::mem;
-
-fn main() {
-	println!("Hello, world!");
-
-	let mut spheres = Vec::new();
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:1e5+1.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.25,z:0.25}, reflection: ReflectType::DIFF}); // left
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:-1e5+99.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.25,y:0.25,z:0.75}, reflection: ReflectType::DIFF}); // right
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:40.8,z:1e5}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // back
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:40.8,z:-1e5+170.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // front
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:1e5,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // bottom
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:-1e5+81.6,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // Top
-	spheres.push(Sphere {radius:16.5, position: Vec3d{x:27.0,y:16.5,z:47.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:1.0,y:1.0,z:1.0}*0.999, reflection: ReflectType::SPEC}); // front
-	spheres.push(Sphere {radius:16.5, position: Vec3d{x:73.0,y:16.5,z:78.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:1.0,y:1.0,z:1.0}*0.999, reflection: ReflectType::REFR}); // front
-	spheres.push(Sphere {radius:600.0, position: Vec3d{x:50.0,y:681.6-0.27,z:81.6}, emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // front
-}
+use std::io::BufWriter;
+use std::fs::{File,OpenOptions};
+use std::path::Path;
 
 
 // ------- VEC ------------
@@ -335,6 +323,98 @@ pub fn radiance(spheres: &mut Vec<Sphere>, ray: &Ray, mut depth: i32) -> Vec3d {
 }
 
 
+fn main() {
+	println!("Hello, world!");
+
+	let mut spheres = Vec::new();
+	spheres.push(Sphere {radius:1e5, position: Vec3d{x:1e5+1.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.25,z:0.25}, reflection: ReflectType::DIFF}); // left
+	spheres.push(Sphere {radius:1e5, position: Vec3d{x:-1e5+99.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.25,y:0.25,z:0.75}, reflection: ReflectType::DIFF}); // right
+	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:40.8,z:1e5}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // back
+	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:40.8,z:-1e5+170.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // front
+	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:1e5,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // bottom
+	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:-1e5+81.6,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // Top
+	spheres.push(Sphere {radius:16.5, position: Vec3d{x:27.0,y:16.5,z:47.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:1.0,y:1.0,z:1.0}*0.999, reflection: ReflectType::SPEC}); // front
+	spheres.push(Sphere {radius:16.5, position: Vec3d{x:73.0,y:16.5,z:78.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:1.0,y:1.0,z:1.0}*0.999, reflection: ReflectType::REFR}); // front
+	spheres.push(Sphere {radius:600.0, position: Vec3d{x:50.0,y:681.6-0.27,z:81.6}, emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // front
+
+	let width: i32 = 1024;
+	let height: i32 = 768;
+	let samps: i32 = 1;
+
+	let cam: Ray = Ray{o:Vec3d{x:50.0,y:52.0,z:295.6}, d: Vec3d{x:0.0,y:-0.042612, z:-1.0}.normalise()};
+
+	let cx: Vec3d = Vec3d{x:width*0.5135/height,y:0.0,z:0.0};
+	let cy: Vec3d = (cx%cam.d).noramlise()*0.5135;
+	let mut r: Vec3d;
+	let c: Vec<Vec3d> = Vec::with_capacity(width*height);
+
+	for y in 0..height {
+		println!("Rendering ({} spp) {}",samps*4,100*y/(height-1));
+		
+		for x in 0..width {
+			let xi = y.pow(3);
+			for sy in 0..2 {
+				let i = (height-y-1)*width+x;
+				for sx in 0..2 {
+					for s in 0..samps {
+						let r1: f64 = 2.0*rand::random::<f64>(); //erand48(xi);
+						let r2: f64 = 2.0*rand::random::<f64>(); //erand48(xi);
+
+						let dx: f64;
+						let dy: f64;
+
+						if r1 < 1.0 {
+							dx = r1.sqrt() - 1.0;
+						} else {
+							dx = 1.0 - (2.0-r1).sqrt();
+						}
+
+						if r2 < 1.0 {
+							dy = r2.sqrt() - 1.0;
+						} else {
+							dy = 1.0 - (2.0-r2).sqrt();
+						}
+
+						let d: Vec3d = cx*(((sx+0.5 + dx)/2.0 + x)/ width - 0.5) + cy*(((sy+0.5+dy)/2.0 + y)/height - 0.5) + cam.d;
+
+						r = r + radiance(Ray{o:cam.o+d*140.0,d:d.normalise()},0.0,xi)*(1.0/samps);
+						
+					}
+
+					c[i] = c[i] + Vec3d{x: clamp(r.x), y: clamp(r.y), z: clamp(r.z)}*0.25;
+					r = Vec3d{x:0.0,y:0.0,z:0.0};
+				}
+			}
+		}
+	}
+
+
+	// We can create a Path
+	let path = Path::new("image.ppm");
+
+	// We create file options to write
+	let mut options = OpenOptions::new();
+	options.write(true).append(true).create(true);
+
+	// Both of these should be valid
+	let file: Result<File> = options.open(path);
+
+	let file = match options.open(&path) {
+		Ok(file) => file,
+		Err(..) => panic!("at the Disco"),
+	};
+
+	// We create a buffered writer from the file we get
+	let mut writer = BufWriter::new(&file);
+	// Then we write to the file. write_all() calls flush() after the write as well.
+	writer.write_line("P3\n{} {}\n{}\n", width, height, 255);
+	for i in 0..width*height {
+		writer.write_line("{} {} {}", c[i].x as i32, c[i].y as i32, c[i].z as i32);
+	}
+
+}
+
+
 
 /*
 
@@ -345,10 +425,12 @@ pub fn radiance(spheres: &mut Vec<Sphere>, ray: &Ray, mut depth: i32) -> Vec3d {
  #pragma omp parallel for schedule(dynamic, 1) private(r)       // OpenMP
    for (int y=0; y<h; y++){                       // Loop over image rows
      fprintf(stderr,"\rRendering (%d spp) %5.2f%%",samps*4,100.*y/(h-1));
+     * 
      for (unsigned short x=0, Xi[3]={0,0,y*y*y}; x<w; x++)   // Loop cols
        for (int sy=0, i=(h-y-1)*w+x; sy<2; sy++)     // 2x2 subpixel rows
          for (int sx=0; sx<2; sx++, r=Vec()){        // 2x2 subpixel cols
            for (int s=0; s<samps; s++){
+           * 
              double r1=2*erand48(Xi), dx=r1<1 ? sqrt(r1)-1: 1-sqrt(2-r1);
              double r2=2*erand48(Xi), dy=r2<1 ? sqrt(r2)-1: 1-sqrt(2-r2);
              Vec d = cx*( ( (sx+.5 + dx)/2 + x)/w - .5) +
