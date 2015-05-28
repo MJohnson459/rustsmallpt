@@ -16,12 +16,31 @@ pub struct Vec3d {
 	z: f64,
 }
 
+
+#[test]
+fn it_works() {
+	let mut v: Vec3d = Vec3d{x: -0.0, y: 0.001017, z: -0.0};
+
+	let u: Vec3d = v.normalise();
+
+	assert!((u.length() - 1.0).abs() < 0.001);
+	assert!((v.length() - 1.0).abs() < 0.001);
+	println!("u: {:?}", u);
+	println!("v: {:?}", v);
+
+	let p: Vec3d = Vec3d{x: 0.0, y: -0.002908, z: 0.0}.normalise();
+
+	println!("p: {:?}", p);
+	assert!((p.length() - 1.0).abs() < 0.001);
+}
+
 impl Vec3d {
-	fn normalise(self) -> Vec3d {
+	fn normalise(&mut self) -> Vec3d {
 		let nx = self.x.powi(2);
 		let ny = self.y.powi(2);
 		let nz = self.z.powi(2);
-		self * (1.0/(nx + ny + nz).sqrt())
+		*self = *self * (1.0/(nx + ny + nz).sqrt());
+		*self
 	}
 
 	fn dot(&self, other: &Vec3d) -> f64 {
@@ -34,6 +53,10 @@ impl Vec3d {
 			y: self.z*other.x - self.x*other.z,
 			z: self.x*other.y - self.y*other.x,
 		}
+	}
+
+	fn length(self) -> f64 {
+		(self.x.powi(2) + self.y.powi(2) + self.z.powi(2)).sqrt()
 	}
 
 	fn mult(self, other: Vec3d) -> Vec3d {
@@ -209,7 +232,7 @@ pub fn intersect(spheres: &mut Vec<Sphere>, ray: &Ray) -> (bool, f64, i32) {
 }
 
 pub fn radiance(spheres: &mut Vec<Sphere>, ray: &Ray, mut depth: i32) -> Vec3d {
-	println!("radiance - depth: {},  ray dir  x: {}, y: {}, z: {}", depth, ray.d.x, ray.d.y, ray.d.z);
+	//println!("radiance - depth: {},  ray dir  x: {}, y: {}, z: {}", depth, ray.d.x, ray.d.y, ray.d.z);
 	let (intersects, t , id) = intersect(spheres, ray);
 	if !intersects {  // if miss, return black
 		//println!("No Intersect!");
@@ -218,17 +241,17 @@ pub fn radiance(spheres: &mut Vec<Sphere>, ray: &Ray, mut depth: i32) -> Vec3d {
 
 	let obj: Sphere = spheres[id as usize].clone();  // the hit object
 
-	let x: Vec3d = ray.o + ray.d*t;
-	let n: Vec3d = (&x - &obj.position).normalise();
-	let nl: Vec3d;
-	if n.dot(&ray.d) < 0.0 {
+	let x: Vec3d = ray.o + ray.d*t; // point on sphere where intersects
+	let n: Vec3d = (&x - &obj.position).normalise(); // surface normal of intersection point
+	let nl: Vec3d; // corrected normal (ie internal or external intersection)
+	if n.dot(&ray.d) < 0.0 { // dot product negative if ray is internal
 		nl = n;
 	} else {
 		nl = n*-1.0;
 	}
 	let mut f: Vec3d = obj.color.clone();
 
-	let p: f64;
+	let p: f64; // brightest colour
 	if f.x > f.y && f.x>f.z {
 		p = f.x;
 	} else if f.y > f.z {
@@ -240,7 +263,7 @@ pub fn radiance(spheres: &mut Vec<Sphere>, ray: &Ray, mut depth: i32) -> Vec3d {
 	depth = depth + 1;
 	if depth > 5 {
 		if rand::random::<f64>() < p {
-			f = f*(1.0/p);
+			f = f*(1.0/p); // normalise colour [0,1]
 		} else {
 			// This might be at the wrong if statement
 			return obj.emission;
@@ -256,15 +279,16 @@ pub fn radiance(spheres: &mut Vec<Sphere>, ray: &Ray, mut depth: i32) -> Vec3d {
 			let w: Vec3d = nl.clone();
 			let u: Vec3d;
 			if w.x.abs() > 0.1 {
-				u = (&Vec3d{x:0.0,y:1.0,z:0.0}%&w).normalise();
+				u = (Vec3d{x:0.0,y:1.0,z:0.0}.cross(w)).normalise();
 			} else {
-				u = (&Vec3d{x:1.0,y:0.0,z:0.0}%&w).normalise();
+				u = (Vec3d{x:1.0,y:0.0,z:0.0}.cross(w)).normalise();
 			}
-
-			let v: Vec3d = &w % &u;
+			println!("obj.emission DIFF u: {:?}", u);
+			
+			let v: Vec3d = w.cross(u);
 
 			let d: Vec3d = (u*r1.cos()*r2s + v*r1.sin()*r2s + w*(1.0-r2).sqrt()).normalise();
-			println!("obj.emission DIFF u: {:?}, v: {:?}, w: {:?}, r1: {:?}, r2s: {:?}", u, v, w, r1, r2s);
+			//println!("obj.emission DIFF u: {:?}, v: {:?}, w: {:?}, r1: {:?}, r2s: {:?}", u, v, w, r1, r2s);
 			let fmu = f.mult(radiance(spheres, &Ray{o:x,d:d}, depth));
 			//println!("obj.emission DIFF - fmu.x: {}, fmu.y: {}, fmu.z: {}, depth: {}", fmu.x, fmu.y, fmu.z, depth);
 			//println!("obj.emission.x: {}, obj.emission.y: {}, obj.emission.z: {}", obj.emission.x, obj.emission.y, obj.emission.z);
@@ -393,9 +417,10 @@ fn main() {
 							dy = 1.0 - (2.0-r2).sqrt();
 						}
 
-						let d: Vec3d = cx*((((sx as f64)+0.5 + dx)/2.0 + (x as f64))/ (width as f64) - 0.5) + cy*((((sy as f64)+0.5+dy)/2.0 + (y as f64))/(height as f64) - 0.5) + cam.d;
-						println!("original dir  d.x: {}, d.y: {}, d.z: {}", d.x, d.y, d.z);
-						let rad: Vec3d = radiance(&mut spheres, &Ray{o:cam.o+d*140.0,d:d.normalise()},0);
+						let d: Vec3d = (cx*((((sx as f64)+0.5 + dx)/2.0 + (x as f64))/ (width as f64) - 0.5) +
+										cy*((((sy as f64)+0.5+dy)/2.0 + (y as f64))/(height as f64) - 0.5) + cam.d).normalise();
+						//println!("original dir  d.x: {}, d.y: {}, d.z: {}", d.x, d.y, d.z);
+						let rad: Vec3d = radiance(&mut spheres, &Ray{o:cam.o+d*140.0,d:d},0);
 						//println!("rad.x: {}, rad.y: {}, rad.z: {}", rad.x, rad.y, rad.z);
 						r = r + rad*(1.0/samps as f64);
 						
