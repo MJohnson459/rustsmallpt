@@ -6,6 +6,8 @@ use std::ops::{Add,Sub,Mul,Rem};
 use std::io::BufWriter;
 use std::fs::{OpenOptions};
 use std::io::Write;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 
 // ------- VEC ------------
@@ -269,7 +271,7 @@ pub fn to_int(x: f64) -> i32 {
 	(clamp(x).powf(1.0/2.2)*255.0+0.5) as i32
 }
 
-pub fn intersect(spheres: &mut Vec<Sphere>, ray: &Ray) -> (bool, f64, i32) {
+pub fn intersect(spheres: &Vec<Sphere>, ray: &Ray) -> (bool, f64, i32) {
 	let n = spheres.len();
 	let mut d: f64;
 	let mut t: f64 = 1e20;
@@ -289,7 +291,7 @@ pub fn intersect(spheres: &mut Vec<Sphere>, ray: &Ray) -> (bool, f64, i32) {
 	(t < inf, t, id)
 }
 
-pub fn radiance(spheres: &mut Vec<Sphere>, ray: &Ray, mut depth: i32) -> Vec3d {
+pub fn radiance(spheres: &Vec<Sphere>, ray: &Ray, mut depth: i32) -> Vec3d {
 	//println!("radiance - depth: {},  ray: {:?}", depth, ray);
 	let (intersects, t , id) = intersect(spheres, ray);
 	if !intersects {  // if miss, return black
@@ -431,7 +433,7 @@ pub fn radiance(spheres: &mut Vec<Sphere>, ray: &Ray, mut depth: i32) -> Vec3d {
 fn main() {
 	println!("Hello, world!");
 
-	let mut spheres = Vec::new();
+	let spheres = Vec::new();
 	spheres.push(Sphere {radius:1e5, position: Vec3d{x:1e5+1.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.25,z:0.25}, reflection: ReflectType::DIFF}); // left
 	spheres.push(Sphere {radius:1e5, position: Vec3d{x:-1e5+99.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.25,y:0.25,z:0.75}, reflection: ReflectType::DIFF}); // right
 	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:40.8,z:1e5}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // back
@@ -442,65 +444,92 @@ fn main() {
 	spheres.push(Sphere {radius:16.5, position: Vec3d{x:73.0,y:16.5,z:78.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:1.0,y:1.0,z:1.0}*0.999, reflection: ReflectType::REFR}); // glass
 	spheres.push(Sphere {radius:600.0, position: Vec3d{x:50.0,y:681.6-0.27,z:81.6}, emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // light
 
-	let width: i32 = 1024;
-	let height: i32 = 768;
+	let width: i32 = 200;
+	let height: i32 = 200;
 	let samps: i32 = 10;
+	let cores: i32 = 4;
 
 	let cam: Ray = Ray{origin: Vec3d{x:50.0,y:52.0,z:295.6}, direction: Vec3d{x:0.0,y:-0.042612, z:-1.0}.normalise()};
 
 	let cx: Vec3d = Vec3d{x:(width as f64)*0.5135/(height as f64),y:0.0,z:0.0}; // x direction increment
 	let cy: Vec3d = (cx % cam.direction).normalise()*0.5135;                    // y direction increment
-	let mut r: Vec3d = Vec3d{x:0.0,y:0.0,z:0.0};
-	let mut c: Vec<Vec3d> = Vec::with_capacity((width*height) as usize);
 
-	unsafe { c.set_len((width*height) as usize); }
+	
+	let mut image = Vec::<Vec3d>::with_capacity((width*height) as usize);
+	unsafe { image.set_len((width*height) as usize); }
 
-	println!("Set c to len = {}", (width*height) as usize);
-	println!("We set c.len = {}", c.len());
+	println!("Set image to len = {}", (width*height) as usize);
+	println!("We set image.len = {}", image.len());
+	
+	let mut c = Arc::new(Mutex::new(image));
 
-	for y in 0..height {
-		println!("Rendering ({} spp) {}",samps*4,100*y/(height-1));
-		
-		for x in 0..width {
-			let xi = y.pow(3);
-			for sy in 0..2 {
-				let i = ((height-y-1)*width+x) as usize;
-				for sx in 0..2 {
-					for s in 0..samps {
-						let r1: f64 = 2.0*rand::random::<f64>(); //erand48(xi);
-						let r2: f64 = 2.0*rand::random::<f64>(); //erand48(xi);
 
-						let dx: f64;
-						let dy: f64;
+	let thread_split = height/cores;
 
-						if r1 < 1.0 {
-							dx = r1.sqrt() - 1.0;
-						} else {
-							dx = 1.0 - (2.0-r1).sqrt();
-						}
+	for thread in 0..cores {
+		let c = c.clone();
+        let result = thread::spawn(move || {
 
-						if r2 < 1.0 {
-							dy = r2.sqrt() - 1.0;
-						} else {
-							dy = 1.0 - (2.0-r2).sqrt();
-						}
+			let mut sub_image = Vec::<Vec3d>::with_capacity((width*height/cores) as usize);
+			unsafe { sub_image.set_len((width*height) as usize); }
+            let mut r: Vec3d = Vec3d{x:0.0,y:0.0,z:0.0};
 
-						let mut d: Vec3d = (cx*((((sx as f64)+0.5 + dx)/2.0 + (x as f64)) / (width as f64) - 0.5) +
-										cy*((((sy as f64)+0.5 + dy)/2.0 + (y as f64)) / (height as f64) - 0.5) + cam.direction);
-						//println!("original dir: {:?}", d);
-						let rad: Vec3d = radiance(&mut spheres, &Ray{origin: cam.origin + d*140.0, direction: d.normalise()},0);
-						//println!("rad.x: {}, rad.y: {}, rad.z: {}", rad.x, rad.y, rad.z);
-						r = r + rad*(1.0/samps as f64);
+            let min_y = thread_split*thread;
+            let max_y = thread_split*(thread+1);
+
+            assert!(min_y > 0);
+            assert!(max_y < width*height);
+        
+			for y in min_y..max_y {
+				println!("Rendering ({} spp) {}",samps*4,100*y/(height-1));
+				
+				for x in 0..width {
+					let xi = y.pow(3);
+					for sy in 0..2 {
+						let i = ((height-y-1)*width+x) as usize;
+						assert!(i > 0);
+						assert!(i < thread_split as usize);
 						
+						for sx in 0..2 {
+							for _ in 0..samps {
+								let r1: f64 = 2.0*rand::random::<f64>(); //erand48(xi);
+								let r2: f64 = 2.0*rand::random::<f64>(); //erand48(xi);
+
+								let dx: f64;
+								let dy: f64;
+
+								if r1 < 1.0 {
+									dx = r1.sqrt() - 1.0;
+								} else {
+									dx = 1.0 - (2.0-r1).sqrt();
+								}
+
+								if r2 < 1.0 {
+									dy = r2.sqrt() - 1.0;
+								} else {
+									dy = 1.0 - (2.0-r2).sqrt();
+								}
+
+								let mut d: Vec3d = (cx*((((sx as f64)+0.5 + dx)/2.0 + (x as f64)) / (width as f64) - 0.5) +
+												cy*((((sy as f64)+0.5 + dy)/2.0 + (y as f64)) / (height as f64) - 0.5) + cam.direction);
+								//println!("original dir: {:?}", d);
+								let rad: Vec3d = radiance(&mut spheres, &Ray{origin: cam.origin + d*140.0, direction: d.normalise()},0);
+								//println!("rad.x: {}, rad.y: {}, rad.z: {}", rad.x, rad.y, rad.z);
+								r = r + rad*(1.0/samps as f64);
+								
+							}
+							let v: Vec3d = Vec3d{x: clamp(r.x), y: clamp(r.y), z: clamp(r.z)};
+							//println!("v.x: {}, v.y: {}, v.z: {}", v.x, v.y, v.z);
+							c[i] = c[i] + v*0.25;
+							r = Vec3d{x:0.0,y:0.0,z:0.0};
+						}
 					}
-					let v: Vec3d = Vec3d{x: clamp(r.x), y: clamp(r.y), z: clamp(r.z)};
-					//println!("v.x: {}, v.y: {}, v.z: {}", v.x, v.y, v.z);
-					c[i] = c[i] + v*0.25;
-					r = Vec3d{x:0.0,y:0.0,z:0.0};
 				}
 			}
-		}
+		}).join().unwrap();
 	}
+
+	let c = *c;
 
 	// We create file options to write
 	let file = OpenOptions::new().write(true).create(true).open("image.ppm").unwrap();
