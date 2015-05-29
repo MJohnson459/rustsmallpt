@@ -5,3 +5,8 @@ authors = ["MJohnson459 <mjohnson459@gmail.com>"]
 
 [dependencies]
 rand = "*"
+
+threadpool = "*"
+
+num_cpus = "*"
+clock_ticks = "0.0.6"
