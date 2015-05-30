@@ -19,76 +19,6 @@ mod vector_3d;
 
 use vector_3d::Vec3d;
 
-#[test]
-fn test_normalise() {
-	let mut v: Vec3d = Vec3d{x: -0.0, y: 0.001017, z: -0.0};
-	let mut w: Vec3d = Vec3d{x: 0.0, y: -0.003064, z: 0.0}.normalise();
-
-	let u: Vec3d = v.normalise();
-
-	assert!((u.length() - 1.0).abs() < 0.001);
-	assert!((v.length() - 1.0).abs() < 0.001);
-	assert!((w.length() - 1.0).abs() < 0.001);
-	println!("u: {:?}", u);
-	println!("v: {:?}", v);
-	println!("w: {:?}", w);
-
-	let p: Vec3d = Vec3d{x: 0.0, y: -0.002908, z: 0.0}.normalise();
-
-	println!("p: {:?}", p);
-	assert!((p.length() - 1.0).abs() < 0.001);
-
-	let a = Vec3d{x: 0.003064, y: 0.0, z: -0.003064}.normalise();
-	let b = Vec3d{x: 0.003064, y: 0.0, z: -0.003064}.normalise();
-	println!("a: {:?}, a.length: {}", a, a.length());
-	println!("b: {:?}, b.length: {}", b, b.length());
-	assert!((a.length() - 1.0).abs() < 0.001);
-	assert!((b.length() - 1.0).abs() < 0.001);
-}
-
-#[test]
-fn test_cross() {
-	let u: Vec3d = Vec3d{x: 0.0, y: 1.0, z: 0.0};
-	let v: Vec3d = Vec3d{x: 1.0, y: 0.0, z: 0.0};
-
-	assert_eq!(u.cross(v), Vec3d{x: 0.0, y: 0.0, z: -1.0});
-	println!("u: {:?}", u);
-	println!("v: {:?}", v);
-
-	let w = Vec3d { x: 0.003064, y: 0.999991, z: 0.003064 };
-
-	let u1 = (Vec3d{x:0.0,y:1.0,z:0.0}.cross(w));
-	let u2 = (Vec3d{x:1.0,y:0.0,z:0.0}.cross(w));
-
-	assert_eq!(u1, Vec3d{x: 0.003064, y: 0.0, z: -0.003064});
-	assert_eq!(u2, Vec3d{x: 0.0, y: -0.003064, z: 0.999991});
-}
-
-#[test]
-fn test_intersection() {
-	let sphere = Sphere {radius:1e5, position: Vec3d{x:1e5+1.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.25,z:0.25}, reflection: ReflectType::DIFF};
-	let ray = Ray { origin: Vec3d { x: 14.234, y: 46.039, z: 14.234 }, direction: Vec3d { x: -0.702, y: -0.117, z: -0.702 } };
-
-	println!("sphere: {:?}", sphere);
-	println!("ray: {:?}", ray);
-	println!("sphere.intersect(&ray): {:?}", sphere.intersect(&ray));
-	//assert_eq!(sphere.intersect(&ray), 18.85);
-}
-
-#[test]
-fn test_light() {
-	let scene = Scene::new();
-	let ray = Ray { origin: Vec3d { x: 50.0, y: 50.0, z: 81.6 }, direction: Vec3d { x: -0.0, y: 1.0, z: 0.0 } }; // aim directly at light
-	//spheres.push(Sphere {radius:600.0, position: Vec3d{x:50.0,y:681.6-0.27,z:81.6}, emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // light
-
-	let (intersected, dist, id) = scene.intersect(&ray);
-	assert!(float_eq(dist, 31.33));
-
-	let result = scene.radiance(&ray, 0);
-	println!("result: {:?}", result);
-	assert!(result != Vec3d::zeros());
-}
-
 // Write the Docopt usage string.
 static USAGE: &'static str = "
 Usage:
@@ -109,7 +39,7 @@ pub struct Ray {
 
 // ----------
 #[derive(Copy, Clone, Debug)]
-enum ReflectType {
+pub enum ReflectType {
 	DIFF,
 	SPEC,
 	REFR
@@ -505,5 +435,100 @@ fn main() {
 			b = format!("{} {} {}\n", to_int(screen[i][j].x), to_int(screen[i][j].y), to_int(screen[i][j].z)).into_bytes();
 			writer.write_all(&b);
 		}
+	}
+}
+
+
+
+
+
+#[cfg(test)]
+mod test {
+	use super::*;
+	use vector_3d::Vec3d;
+	use rand;
+
+	#[test]
+	fn test_intersection() {
+		let sphere = Sphere {radius:1e5, position: Vec3d{x:1e5+1.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.25,z:0.25}, reflection: ReflectType::DIFF};
+		let ray = Ray { origin: Vec3d { x: 14.234, y: 46.039, z: 14.234 }, direction: Vec3d { x: -0.702, y: -0.117, z: -0.702 } };
+
+		println!("sphere: {:?}", sphere);
+		println!("ray: {:?}", ray);
+		println!("sphere.intersect(&ray): {:?}", sphere.intersect(&ray));
+		//assert_eq!(sphere.intersect(&ray), 18.85);
+	}
+
+	#[test]
+	fn test_light() {
+		let scene = Scene::new();
+		let ray = Ray { origin: Vec3d { x: 50.0, y: 50.0, z: 81.6 }, direction: Vec3d { x: -0.0, y: 1.0, z: 0.0 } }; // aim directly at light
+		//spheres.push(Sphere {radius:600.0, position: Vec3d{x:50.0,y:681.6-0.27,z:81.6}, emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // light
+
+		let (intersected, dist, id) = scene.intersect(&ray);
+		assert!(float_eq(dist, 31.33));
+
+		let result = scene.radiance(&ray, 0);
+		println!("result: {:?}", result);
+		assert!(result != Vec3d::zeros());
+	}
+
+	#[test]
+	fn test_light_scene() {
+		let x = 30;
+		let y = 43;
+
+		let width = 50;
+		let height = 50;
+		let samps = 1;
+
+		let scene = Scene::new();
+		let mut r: Vec3d = Vec3d{x:0.0, y: 0.0, z: 0.0};
+
+		let cam: Ray = Ray{origin: Vec3d{x:50.0,y:50.0,z:295.6}, direction: Vec3d{x:0.0,y:-0.042612, z:-1.0}.normalise()};
+
+		let cx: Vec3d = Vec3d{x:(width as f64)*0.5135/(height as f64),y:0.0,z:0.0}; // x direction increment
+		let cy: Vec3d = (cx % cam.direction).normalise()*0.5135;                    // y direction increment
+
+		let mut sum = Vec3d{x:0.0,y:0.0,z:0.0};
+		for sy in 0..2 {
+			for sx in 0..2 {
+				for _ in 0..samps {
+					let r1: f64 = 2.0*rand::random::<f64>(); //erand48(xi);
+					let r2: f64 = 2.0*rand::random::<f64>(); //erand48(xi);
+
+					let dx: f64;
+					let dy: f64;
+
+					if r1 < 1.0 {
+						dx = r1.sqrt() - 1.0;
+					} else {
+						dx = 1.0 - (2.0-r1).sqrt();
+					}
+
+					if r2 < 1.0 {
+						dy = r2.sqrt() - 1.0;
+					} else {
+						dy = 1.0 - (2.0-r2).sqrt();
+					}
+
+					let mut d: Vec3d = cx*((((sx as f64)+0.5 + dx)/2.0 + (x as f64)) / (width as f64) - 0.5) +
+					cy*((((sy as f64)+0.5 + dy)/2.0 + (y as f64)) / (height as f64) - 0.5) + cam.direction;
+					println!("original dir: {:?}", d);
+					let rad: Vec3d = scene.radiance(&Ray{origin: cam.origin + d*140.0, direction: d.normalise()},0);
+					println!("rad: {:?}", rad);
+					r = r + rad*(1.0/samps as f64);
+					println!("r: {:?}", r);
+
+				}
+				let v: Vec3d = Vec3d{x: clamp(r.x), y: clamp(r.y), z: clamp(r.z)};
+				println!("v: {:?}", v);
+				sum = sum + v*0.25;
+				println!("sum: {:?}", sum);
+				r = Vec3d{x:0.0,y:0.0,z:0.0};
+			}
+		}
+
+		assert!(sum != Vec3d::zeros());
 	}
 }
