@@ -165,7 +165,7 @@ pub fn clamp(x: f64) -> f64 {
 	if x < 0.0 {
 		return 0.0;
 	} else 	if x > 1.0 {
-		return 0.0;
+		return 1.0;
 	}
 	x
 }
