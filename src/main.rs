@@ -2,9 +2,10 @@ extern crate rand;
 extern crate threadpool;
 extern crate num_cpus;
 extern crate clock_ticks;
+extern crate docopt;
 
+use std::env;
 use std::f64;
-
 use std::io::BufWriter;
 use std::fs::{OpenOptions};
 use std::io::Write;
@@ -12,6 +13,7 @@ use std::io;
 use std::sync::Arc;
 use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
+use docopt::Docopt;
 
 mod vector_3d;
 
@@ -87,6 +89,11 @@ fn test_light() {
 	assert!(result != Vec3d::zeros());
 }
 
+// Write the Docopt usage string.
+static USAGE: &'static str = "
+Usage:
+	smallpt <width> <height> <samples>
+";
 
 pub fn float_eq(a: f64, b:f64) -> bool {
 	(a - b).abs() < 0.0001
@@ -370,9 +377,24 @@ impl Time {
 }
 
 fn main() {
-	let width = 200;
-	let height = 200;
-	let samps = 200;
+
+	// Prints each argument on a separate line
+	for argument in env::args() {
+		println!("{}", argument);
+	}
+
+	// Parse argv and exit the program with an error message if it fails.
+	let args = Docopt::new(USAGE)
+	.and_then(|dopt| dopt.parse())
+	.unwrap_or_else(|e| e.exit());
+
+	let width: usize = args.get_str("<width>").parse().unwrap_or(1024);
+	let height: usize = args.get_str("<height>").parse().unwrap_or(768);
+	let samps: usize = args.get_str("<samples>").parse().unwrap_or(100);
+
+	println!("width: {}, height: {}, samples: {}", width, height, samps);
+
+
 	let num_threads = num_cpus::get();
 
 	let time_per_spp: f64 = 3.3276e-6;
@@ -471,7 +493,7 @@ fn main() {
 	println!("DEBUG time_per_spp: {}", (time_taken as f64/(width*height*4*samps) as f64)*1e6);
 
 	// We create file options to write
-	let file = OpenOptions::new().write(true).create(true).open("image.ppm").unwrap();
+	let file = OpenOptions::new().write(true).create(true).open(format!("image_{}_{}_{}.ppm", width, height, samps*4)).unwrap();
 
 	// We create a buffered writer from the file we get
 	let mut writer = BufWriter::new(&file);
