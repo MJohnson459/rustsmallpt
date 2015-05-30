@@ -5,7 +5,6 @@ extern crate clock_ticks;
 
 use std::f64;
 
-use std::ops::{Add,Sub,Mul,Rem};
 use std::io::BufWriter;
 use std::fs::{OpenOptions};
 use std::io::Write;
@@ -14,15 +13,9 @@ use std::sync::Arc;
 use threadpool::ThreadPool;
 use std::sync::mpsc::channel;
 
+mod vector_3d;
 
-// ------- VEC ------------
-#[derive(Copy, Clone, Debug)]
-pub struct Vec3d {
-	x: f64,
-	y: f64,
-	z: f64,
-}
-
+use vector_3d::Vec3d;
 
 #[test]
 fn test_normalise() {
@@ -97,135 +90,6 @@ fn test_light() {
 
 pub fn float_eq(a: f64, b:f64) -> bool {
 	(a - b).abs() < 0.0001
-}
-
-
-impl Vec3d {
-	fn new(x: f64, y: f64, z: f64) -> Vec3d {
-		Vec3d {x: x, y: y, z: z}
-	}
-
-	fn zeros() ->Vec3d {
-		Vec3d {x: 0.0, y: 0.0, z: 0.0}
-	}
-
-	fn normalise(&mut self) -> Vec3d {
-		let nx = self.x.powi(2);
-		let ny = self.y.powi(2);
-		let nz = self.z.powi(2);
-		*self = *self * (1.0/(nx + ny + nz).sqrt());
-		*self
-	}
-
-	fn dot(&self, other: &Vec3d) -> f64 {
-		self.x*other.x + self.y*other.y + self.z*other.z
-	}
-
-	fn cross(self, other: Vec3d) -> Vec3d {
-		Vec3d {
-			x: self.y*other.z - self.z*other.y,
-			y: self.z*other.x - self.x*other.z,
-			z: self.x*other.y - self.y*other.x,
-		}
-	}
-
-	fn length(self) -> f64 {
-		(self.x.powi(2) + self.y.powi(2) + self.z.powi(2)).sqrt()
-	}
-
-	fn mult(self, other: Vec3d) -> Vec3d {
-		Vec3d {
-			x: self.x * other.x,
-			y: self.y * other.y,
-			z: self.z * other.z,
-		}
-
-	}
-}
-
-impl Add for Vec3d {
-	type Output = Vec3d;
-	fn add(self, other: Vec3d) -> Vec3d {
-		Vec3d {
-			x: self.x + other.x,
-			y: self.y + other.y,
-			z: self.z + other.z,
-		}
-	}
-}
-
-impl<'a,'b> Sub<&'b Vec3d> for &'a Vec3d {
-	type Output = Vec3d;
-	fn sub(self, other: &'b Vec3d) -> Vec3d {
-		Vec3d {
-			x: self.x - other.x,
-			y: self.y - other.y,
-			z: self.z - other.z,
-		}
-	}
-}
-
-impl Sub for Vec3d {
-	type Output = Vec3d;
-	fn sub(self, other: Vec3d) -> Vec3d {
-		Vec3d {
-			x: self.x - other.x,
-			y: self.y - other.y,
-			z: self.z - other.z,
-		}
-	}
-}
-
-impl<'a,'b> Mul<&'b Vec3d> for &'a Vec3d {
-	type Output = Vec3d;
-	fn mul(self, other: &'b Vec3d) -> Vec3d {
-		Vec3d {
-			x: self.x * other.x,
-			y: self.y * other.y,
-			z: self.z * other.z,
-		}
-	}
-}
-
-impl Mul<f64> for Vec3d {
-	type Output = Vec3d;
-	fn mul(self, other: f64) -> Vec3d {
-		Vec3d {
-			x: self.x * other,
-			y: self.y * other,
-			z: self.z * other,
-		}
-	}
-}
-
-impl Rem for Vec3d {
-	type Output = Vec3d;
-	fn rem(self, other: Vec3d) -> Vec3d {
-		Vec3d {
-			x: self.y * other.z - self.z*other.y,
-			y: self.z * other.x - self.x*other.z,
-			z: self.x * other.y - self.y*other.x,
-		}
-	}
-}
-
-impl<'a,'b> Rem<&'b Vec3d> for &'a Vec3d {
-	type Output = Vec3d;
-	fn rem(self, other: &'b Vec3d) -> Vec3d {
-		Vec3d {
-			x: self.y * other.z - self.z*other.y,
-			y: self.z * other.x - self.x*other.z,
-			z: self.x * other.y - self.y*other.x,
-		}
-	}
-}
-
-impl PartialEq for Vec3d {
-	fn eq(&self, other: &Vec3d) -> bool {
-		((self.x - other.x).abs() < 0.0001) &&
-		((self.y - other.y).abs() < 0.0001) &&
-		((self.z - other.z).abs() < 0.0001)
-	}
 }
 
 // ----------- Ray --------------
@@ -602,7 +466,9 @@ fn main() {
 		left -= 1;
 	}
 
-	println!("Finished rendering. Time taken: {}", Time::new(clock_ticks::precise_time_s() - time_start).get_time());
+	let time_taken = clock_ticks::precise_time_s() - time_start;
+	println!("Finished rendering. Time taken: {}", Time::new(time_taken).get_time());
+	println!("DEBUG time_per_spp: {}", (time_taken as f64/(width*height*4*samps) as f64)*1e6);
 
 	// We create file options to write
 	let file = OpenOptions::new().write(true).create(true).open("image.ppm").unwrap();
