@@ -276,186 +276,199 @@ pub fn to_int(x: f64) -> i32 {
 	(clamp(x).powf(1.0/2.2)*255.0+0.5) as i32
 }
 
-pub fn intersect(spheres: &Vec<Sphere>, ray: &Ray) -> (bool, f64, i32) {
-	let n = spheres.len();
-	let mut d: f64;
-	let mut t: f64 = 1e20;
-	let mut id: i32 = 0;
-	let inf = 1e20;
 
-	for i in (0..n).rev() {
-		//println!("i: {}",i);
-		d = spheres[i].intersect(ray);
-		if d != 0.0 && d < t {
-			//println!("ray intersected sphere {}: {:?}", i, ray);
-			t = d;
-			id = i as i32;
-		}
-	}
-	//println!("intersects - t: {}, inf: {}", t, inf);
-	(t < inf, t, id)
+pub struct Scene {
+	pub spheres: Vec<Sphere>
 }
 
-pub fn radiance(spheres: &Vec<Sphere>, ray: &Ray, mut depth: i32) -> Vec3d {
-	//println!("radiance - depth: {},  ray: {:?}", depth, ray);
-	let (intersects, t , id) = intersect(spheres, ray);
-	if !intersects {  // if miss, return black
-		//println!("No Intersect!");
-		return Vec3d{x:0.0,y:0.0,z:0.0};
-	}
+impl Scene {
+	pub fn new() -> Scene {
+		let mut spheres = Vec::new();
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:1e5+1.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.25,z:0.25}, reflection: ReflectType::DIFF}); // left
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:-1e5+99.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.25,y:0.25,z:0.75}, reflection: ReflectType::DIFF}); // right
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:40.8,z:1e5}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // back
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:40.8,z:-1e5+170.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // front
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:1e5,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // bottom
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:-1e5+81.6,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // Top
+		spheres.push(Sphere {radius:16.5, position: Vec3d{x:27.0,y:16.5,z:47.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:1.0,y:1.0,z:1.0}*0.999, reflection: ReflectType::SPEC}); // mirror
+		spheres.push(Sphere {radius:16.5, position: Vec3d{x:73.0,y:16.5,z:78.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:1.0,y:1.0,z:1.0}*0.999, reflection: ReflectType::REFR}); // glass
+		spheres.push(Sphere {radius:600.0, position: Vec3d{x:50.0,y:681.6-0.27,z:81.6}, emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // light
 
-	let obj: Sphere = spheres[id as usize].clone();  // the hit object
-
-	let x: Vec3d = ray.origin + ray.direction*t; // point on sphere where intersects
-	let n: Vec3d = (&x - &obj.position).normalise(); // surface normal of intersection point
-	let nl: Vec3d; // corrected normal (ie internal or external intersection)
-	if n.dot(&ray.direction) < 0.0 { // dot product negative if ray is internal
-		nl = n;
-	} else {
-		nl = n*-1.0;
-	}
-
-	//println!("ray: {:?}",ray);
-	//println!("t: {:?}",t);
-	//println!("obj: {:?}",obj);
-	//println!("x: {:?}",x);
-	//println!("n: {:?}",n);
-	//println!("nl: {:?}",nl);
-
-	let mut f: Vec3d = obj.color.clone();
-
-	let p: f64; // brightest colour
-	if f.x > f.y && f.x>f.z {
-		p = f.x;
-	} else if f.y > f.z {
-		p = f.y;
-	} else {
-		p = f.z;
-	}
-
-	depth = depth + 1;
-	if depth > 5 {
-		if rand::random::<f64>()+0.5 < p {
-			f = f*(1.0/p); // normalise colour [0,1]
-		} else {
-			// This might be at the wrong if statement
-			return obj.emission;
+		Scene {
+			spheres: spheres
 		}
 	}
 
-	match obj.reflection {
-		ReflectType::DIFF => {
-			let r1: f64 = 2.0*f64::consts::PI*rand::random::<f64>();
-			let r2: f64 = rand::random();
-			let r2s = r2.sqrt();
+	pub fn intersect(&self, ray: &Ray) -> (bool, f64, i32) {
+		let n = self.spheres.len();
+		let mut d: f64;
+		let mut t: f64 = 1e20;
+		let mut id: i32 = 0;
+		let inf = 1e20;
 
-			let w: Vec3d = nl.clone();
-			let u: Vec3d;
-			if w.x.abs() > 0.1 {
-				u = (Vec3d{x:0.0,y:1.0,z:0.0}.cross(w)).normalise();
-			} else {
-				u = (Vec3d{x:1.0,y:0.0,z:0.0}.cross(w)).normalise();
+		for i in (0..n).rev() {
+			//println!("i: {}",i);
+			d = self.spheres[i].intersect(ray);
+			if d != 0.0 && d < t {
+				//println!("ray intersected sphere {}: {:?}", i, ray);
+				t = d;
+				id = i as i32;
 			}
-			//println!("obj.emission DIFF w: {:?}, u: {:?}", w, u);
-			assert!((u.length() - 1.0).abs() < 0.001);
-
-			let v: Vec3d = w.cross(u);
-
-			let d: Vec3d = (u*r1.cos()*r2s + v*r1.sin()*r2s + w*(1.0-r2).sqrt()).normalise();
-			assert!((d.length() - 1.0).abs() < 0.001);
-			//println!("obj.emission DIFF u: {:?}, v: {:?}, w: {:?}, r1: {:?}, r2s: {:?}", u, v, w, r1, r2s);
-			let fmu = f.mult(radiance(spheres, &Ray{origin: x, direction: d}, depth));
-			//println!("obj.emission DIFF - fmu.x: {}, fmu.y: {}, fmu.z: {}, depth: {}", fmu.x, fmu.y, fmu.z, depth);
-			//println!("obj.emission.x: {}, obj.emission.y: {}, obj.emission.z: {}", obj.emission.x, obj.emission.y, obj.emission.z);
-			return obj.emission + fmu;
-		},
-		ReflectType::SPEC => {
-			//println!("obj.emission SPEC, depth: {}", depth);
-			let d: Vec3d = ray.direction-(n*2.0*n.dot(&ray.direction));
-			return obj.emission + f.mult(radiance(spheres, &Ray{origin: x, direction: d}, depth));
-		},
-		_ => {}
-
-	}
-
-	let refl_ray: Ray = Ray{origin: x, direction: ray.direction-n*2.0*n.dot(&ray.direction)}; // Ideal dielectric REFRACTION
-	let into: bool = n.dot(&nl) > 0.0;
-
-	let nc: f64 = 1.0;
-	let nt: f64 = 1.5;
-	let nnt: f64;
-	if into { // Ray from outside going in?
-		nnt = nc/nt;
-	} else {
-		nnt = nt/nc;
-	}
-	let ddn: f64 =ray.direction.dot(&nl);
-	let cos2t: f64 = 1.0 - nnt * nnt * (1.0 - ddn * ddn);
-	if cos2t < 0.0 { // Total internal reflection
-		//println!("obj.emission cos2t < 0.0");
-		return obj.emission + f.mult(radiance(spheres, &refl_ray,depth));
-	}
-
-	let tdir: Vec3d;
-
-	if into {
-		tdir = (ray.direction*nnt - n*(1.0*(ddn*nnt+cos2t.sqrt()))).normalise();
-	} else {
-		tdir = (ray.direction*nnt - n*(-1.0*(ddn*nnt+cos2t.sqrt()))).normalise();
-	}
-
-	let a: f64 = nt- nc;
-	let b: f64 = nt + nc;
-	let r0: f64 = a*a/(b*b);
-	let c: f64;
-
-	if into {
-		c = 1.0 + ddn;
-	} else {
-		c = 1.0 - tdir.dot(&n);
-	}
-
-	let re: f64 = r0+(1.0-r0)*c.powi(5);
-	let tr: f64 = 1.0 - re;
-	let p: f64 = 0.25+0.5*re;
-	let rp: f64 = re/p;
-	let tp: f64 = tr/(1.0-p);
-
-	if depth > 2 {
-		if rand::random::<f64>() < p {
-			//println!("rand::random::<f64>() < p - depth: {}", depth);
-			return obj.emission + f.mult(radiance(spheres, &refl_ray,depth)*rp);
-		} else {
-			//println!("rand::random::<f64>() >= p - depth: {}", depth);
-			return obj.emission + f.mult(radiance(spheres, &Ray{origin: x, direction: tdir},depth)*tp);
 		}
-	} else {
-		//println!("reflect ray: {}", depth);
-		return obj.emission + f.mult(radiance(spheres, &refl_ray,depth)*re+radiance(spheres, &Ray{origin: x, direction: tdir},depth)*tr);
+		//println!("intersects - t: {}, inf: {}", t, inf);
+		(t < inf, t, id)
 	}
+
+	pub fn radiance(&self, ray: &Ray, mut depth: i32) -> Vec3d {
+		//println!("radiance - depth: {},  ray: {:?}", depth, ray);
+		let (intersects, t, id) = self.intersect(ray);
+		if !intersects {  // if miss, return black
+			//println!("No Intersect!");
+			return Vec3d{x:0.0, y:0.0, z:0.0};
+		}
+
+		let obj: Sphere = self.spheres[id as usize].clone();  // the hit object
+
+		let x: Vec3d = ray.origin + ray.direction*t; // point on sphere where intersects
+		let n: Vec3d = (&x - &obj.position).normalise(); // surface normal of intersection point
+		let nl: Vec3d; // corrected normal (ie internal or external intersection)
+		if n.dot(&ray.direction) < 0.0 { // dot product negative if ray is internal
+			nl = n;
+		} else {
+			nl = n*-1.0;
+		}
+
+		//println!("ray: {:?}",ray);
+		//println!("t: {:?}",t);
+		//println!("obj: {:?}",obj);
+		//println!("x: {:?}",x);
+		//println!("n: {:?}",n);
+		//println!("nl: {:?}",nl);
+
+		let mut f: Vec3d = obj.color.clone();
+
+		let p: f64; // brightest colour
+		if f.x > f.y && f.x>f.z {
+			p = f.x;
+		} else if f.y > f.z {
+			p = f.y;
+		} else {
+			p = f.z;
+		}
+
+		depth = depth + 1;
+		if depth > 5 {
+			if rand::random::<f64>()+0.5 < p {
+				f = f*(1.0/p); // normalise colour [0,1]
+			} else {
+				// This might be at the wrong if statement
+				return obj.emission;
+			}
+		}
+
+		match obj.reflection {
+			ReflectType::DIFF => {
+				let r1: f64 = 2.0*f64::consts::PI*rand::random::<f64>();
+				let r2: f64 = rand::random();
+				let r2s = r2.sqrt();
+
+				let w: Vec3d = nl.clone();
+				let u: Vec3d;
+				if w.x.abs() > 0.1 {
+					u = (Vec3d{x:0.0, y:1.0,z:0.0}.cross(w)).normalise();
+				} else {
+					u = (Vec3d{x:1.0, y:0.0,z:0.0}.cross(w)).normalise();
+				}
+				//println!("obj.emission DIFF w: {:?}, u: {:?}", w, u);
+				assert!((u.length() - 1.0).abs() < 0.001);
+
+				let v: Vec3d = w.cross(u);
+
+				let d: Vec3d = (u*r1.cos()*r2s + v*r1.sin()*r2s + w*(1.0-r2).sqrt()).normalise();
+				assert!((d.length() - 1.0).abs() < 0.001);
+				//println!("obj.emission DIFF u: {:?}, v: {:?}, w: {:?}, r1: {:?}, r2s: {:?}", u, v, w, r1, r2s);
+				let fmu = f.mult(self.radiance(&Ray{origin: x, direction: d}, depth));
+				//println!("obj.emission DIFF - fmu.x: {}, fmu.y: {}, fmu.z: {}, depth: {}", fmu.x, fmu.y, fmu.z, depth);
+				//println!("obj.emission.x: {}, obj.emission.y: {}, obj.emission.z: {}", obj.emission.x, obj.emission.y, obj.emission.z);
+				return obj.emission + fmu;
+			},
+			ReflectType::SPEC => {
+				//println!("obj.emission SPEC, depth: {}", depth);
+				let d: Vec3d = ray.direction-(n*2.0*n.dot(&ray.direction));
+				return obj.emission + f.mult(self.radiance(&Ray{origin: x, direction: d}, depth));
+			},
+				_ => {}
+
+		}
+
+		let refl_ray: Ray = Ray{origin: x, direction: ray.direction-n*2.0*n.dot(&ray.direction)}; // Ideal dielectric REFRACTION
+		let into: bool = n.dot(&nl) > 0.0;
+
+		let nc: f64 = 1.0;
+		let nt: f64 = 1.5;
+		let nnt: f64;
+		if into { // Ray from outside going in?
+			nnt = nc/nt;
+		} else {
+			nnt = nt/nc;
+		}
+		let ddn: f64 =ray.direction.dot(&nl);
+		let cos2t: f64 = 1.0 - nnt * nnt * (1.0 - ddn * ddn);
+		if cos2t < 0.0 { // Total internal reflection
+			//println!("obj.emission cos2t < 0.0");
+			return obj.emission + f.mult(self.radiance(&refl_ray, depth));
+		}
+
+		let tdir: Vec3d;
+
+		if into {
+			tdir = (ray.direction*nnt - n*(1.0*(ddn*nnt+cos2t.sqrt()))).normalise();
+		} else {
+			tdir = (ray.direction*nnt - n*(-1.0*(ddn*nnt+cos2t.sqrt()))).normalise();
+		}
+
+		let a: f64 = nt- nc;
+		let b: f64 = nt + nc;
+		let r0: f64 = a*a/(b*b);
+		let c: f64;
+
+		if into {
+			c = 1.0 + ddn;
+		} else {
+			c = 1.0 - tdir.dot(&n);
+		}
+
+		let re: f64 = r0+(1.0-r0)*c.powi(5);
+		let tr: f64 = 1.0 - re;
+		let p: f64 = 0.25+0.5*re;
+		let rp: f64 = re/p;
+		let tp: f64 = tr/(1.0-p);
+
+		if depth > 2 {
+			if rand::random::<f64>() < p {
+				//println!("rand::random::<f64>() < p - depth: {}", depth);
+				return obj.emission + f.mult(self.radiance(&refl_ray, depth)*rp);
+			} else {
+				//println!("rand::random::<f64>() >= p - depth: {}", depth);
+				return obj.emission + f.mult(self.radiance(&Ray{origin: x, direction: tdir}, depth)*tp);
+			}
+		} else {
+			//println!("reflect ray: {}", depth);
+			return obj.emission + f.mult(self.radiance(&refl_ray, depth)*re+self.radiance(&Ray{origin: x, direction: tdir}, depth)*tr);
+		}
+	}
+
 }
 
 fn main() {
 	println!("Hello, world!");
 
-	let mut spheres = Vec::new();
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:1e5+1.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.25,z:0.25}, reflection: ReflectType::DIFF}); // left
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:-1e5+99.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.25,y:0.25,z:0.75}, reflection: ReflectType::DIFF}); // right
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:40.8,z:1e5}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // back
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:40.8,z:-1e5+170.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // front
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:1e5,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // bottom
-	spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:-1e5+81.6,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // Top
-	spheres.push(Sphere {radius:16.5, position: Vec3d{x:27.0,y:16.5,z:47.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:1.0,y:1.0,z:1.0}*0.999, reflection: ReflectType::SPEC}); // mirror
-	spheres.push(Sphere {radius:16.5, position: Vec3d{x:73.0,y:16.5,z:78.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:1.0,y:1.0,z:1.0}*0.999, reflection: ReflectType::REFR}); // glass
-	spheres.push(Sphere {radius:600.0, position: Vec3d{x:50.0,y:681.6-0.27,z:81.6}, emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // light
-
-	let spheres = spheres;
-
-	let width = 500;
-	let height = 500;
-	let samps = 150;
+	let width = 200;
+	let height = 200;
+	let samps = 10;
 	let num_threads = num_cpus::get();
 
+	let scene = Arc::new(Scene::new());
 	let cam: Ray = Ray{origin: Vec3d{x:50.0,y:52.0,z:295.6}, direction: Vec3d{x:0.0,y:-0.042612, z:-1.0}.normalise()};
 
 	let cx: Vec3d = Vec3d{x:(width as f64)*0.5135/(height as f64),y:0.0,z:0.0}; // x direction increment
@@ -471,7 +484,7 @@ fn main() {
 
 	for y in 0..height {
 		let tx = tx.clone();
-		let spheres = spheres.clone();
+		let scene = scene.clone();
 		let mut r: Vec3d = Vec3d{x:0.0, y: 0.0, z: 0.0};
 
 		threadpool.execute(move || {
@@ -499,10 +512,10 @@ fn main() {
 								dy = 1.0 - (2.0-r2).sqrt();
 							}
 
-							let mut d: Vec3d = (cx*((((sx as f64)+0.5 + dx)/2.0 + (x as f64)) / (width as f64) - 0.5) +
-											cy*((((sy as f64)+0.5 + dy)/2.0 + (y as f64)) / (height as f64) - 0.5) + cam.direction);
+							let mut d: Vec3d = cx*((((sx as f64)+0.5 + dx)/2.0 + (x as f64)) / (width as f64) - 0.5) +
+											cy*((((sy as f64)+0.5 + dy)/2.0 + (y as f64)) / (height as f64) - 0.5) + cam.direction;
 							//println!("original dir: {:?}", d);
-							let rad: Vec3d = radiance(&spheres, &Ray{origin: cam.origin + d*140.0, direction: d.normalise()},0);
+							let rad: Vec3d = scene.radiance(&Ray{origin: cam.origin + d*140.0, direction: d.normalise()},0);
 							//println!("rad.x: {}, rad.y: {}, rad.z: {}", rad.x, rad.y, rad.z);
 							r = r + rad*(1.0/samps as f64);
 
@@ -547,40 +560,9 @@ fn main() {
 	for i in (0..height as usize).rev() {
 		for j in 0..width as usize {
 			b = format!("{} {} {}\n", to_int(screen[i][j].x), to_int(screen[i][j].y), to_int(screen[i][j].z)).into_bytes();
+			//b = format!("{} {} {}\n", screen[i][j].x, (screen[i][j].y), (screen[i][j].z)).into_bytes();
 			writer.write_all(&b);
 		}
 	}
 
 }
-
-
-
-/*
-
- int main(int argc, char *argv[]){
-   int w=1024, h=768, samps = argc==2 ? atoi(argv[1])/4 : 1; // # samples
-   Ray cam(Vec(50,52,295.6), Vec(0,-0.042612,-1).norm()); // cam pos, dir
-   Vec cx=Vec(w*.5135/h), cy=(cx%cam.d).norm()*.5135, r, *c=new Vec[w*h];
- #pragma omp parallel for schedule(dynamic, 1) private(r)       // OpenMP
-   for (int y=0; y<h; y++){                       // Loop over image rows
-     fprintf(stderr,"\rRendering (%d spp) %5.2f%%",samps*4,100.*y/(h-1));
-     * 
-     for (unsigned short x=0, Xi[3]={0,0,y*y*y}; x<w; x++)   // Loop cols
-       for (int sy=0, i=(h-y-1)*w+x; sy<2; sy++)     // 2x2 subpixel rows
-         for (int sx=0; sx<2; sx++, r=Vec()){        // 2x2 subpixel cols
-           for (int s=0; s<samps; s++){
-           * 
-             double r1=2*erand48(Xi), dx=r1<1 ? sqrt(r1)-1: 1-sqrt(2-r1);
-             double r2=2*erand48(Xi), dy=r2<1 ? sqrt(r2)-1: 1-sqrt(2-r2);
-             Vec d = cx*( ( (sx+.5 + dx)/2 + x)/w - .5) +
-                     cy*( ( (sy+.5 + dy)/2 + y)/h - .5) + cam.d;
-             r = r + radiance(Ray(cam.o+d*140,d.norm()),0,Xi)*(1./samps);
-           } // Camera rays are pushed ^^^^^ forward to start in interior
-           c[i] = c[i] + Vec(clamp(r.x),clamp(r.y),clamp(r.z))*.25;
-         }
-   }
-   FILE *f = fopen("image.ppm", "w");         // Write image to PPM file.
-   fprintf(f, "P3\n%d %d\n%d\n", w, h, 255);
-   for (int i=0; i<w*h; i++)
-     fprintf(f,"%d %d %d ", toInt(c[i].x), toInt(c[i].y), toInt(c[i].z));
-    */
