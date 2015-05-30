@@ -127,6 +127,23 @@ impl Scene {
 		}
 	}
 
+	pub fn new2() -> Scene {
+		let mut spheres = Vec::new();
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:1e5+1.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.8,y:0.1,z:0.1}, reflection: ReflectType::DIFF}); // left
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:-1e5+99.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.1,y:0.3,z:0.70}, reflection: ReflectType::DIFF}); // right
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:40.8,z:1e5}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // back
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:40.8,z:-1e5+170.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // front
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:1e5,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // bottom
+		spheres.push(Sphere {radius:1e5, position: Vec3d{x:50.0,y:-1e5+81.6,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // Top
+		spheres.push(Sphere {radius:16.5, position: Vec3d{x:27.0,y:16.5,z:47.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:1.0,y:1.0,z:1.0}*0.95, reflection: ReflectType::SPEC}); // mirror
+		spheres.push(Sphere {radius:16.5, position: Vec3d{x:73.0,y:30.0,z:78.0}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:1.0,y:1.0,z:1.0}*0.95, reflection: ReflectType::REFR}); // glass
+		spheres.push(Sphere {radius:600.0, position: Vec3d{x:50.0,y:681.6-0.27,z:81.6}, emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // light
+
+		Scene {
+			spheres: spheres
+		}
+	}
+
 	pub fn intersect(&self, ray: &Ray) -> (bool, f64, i32) {
 		let n = self.spheres.len();
 		let mut d: f64;
@@ -327,17 +344,23 @@ fn main() {
 
 	let num_threads = num_cpus::get();
 
-	let time_per_spp: f64 = 3.3276e-6;
+	let time_per_spp: f64 = 3.659458e-6;
 	let est_time: Time = Time::new(4.0*time_per_spp*(samps*width*height) as f64);
 
-	println!("Estimated time: {}", est_time.get_time());
+	println!("Estimated time [ DEBUG ]: {}", est_time.get_time());
 
-	let scene = Arc::new(Scene::new());
+	let time_per_spp: f64 = 0.432191e-6;
+	let est_time: Time = Time::new(4.0*time_per_spp*(samps*width*height) as f64);
+
+	println!("Estimated time [RELEASE]: {}", est_time.get_time());
+
+	let scene = Arc::new(Scene::new2());
 	let cam: Ray = Ray{origin: Vec3d{x:50.0,y:50.0,z:295.6}, direction: Vec3d{x:0.0,y:-0.042612, z:-1.0}.normalise()};
 	//let cam: Ray = Ray{origin: Vec3d{x:50.0,y:42.0,z:235.6}, direction: Vec3d{x:0.0,y:-0.042612, z:-1.0}.normalise()};
 
-	let cx: Vec3d = Vec3d{x:(width as f64)*0.5135/(height as f64),y:0.0,z:0.0}; // x direction increment
-	let cy: Vec3d = (cx % cam.direction).normalise()*0.5135;                    // y direction increment
+	let fov: f64 = 0.5135;
+	let cx: Vec3d = Vec3d{x:(width as f64)*fov/(height as f64),y:0.0,z:0.0}; // x direction increment
+	let cy: Vec3d = (cx % cam.direction).normalise()*fov;                    // y direction increment
 
 	let threadpool = ThreadPool::new(num_threads);
 	let (tx, rx) = channel();
@@ -391,12 +414,6 @@ fn main() {
 						r = Vec3d{x:0.0,y:0.0,z:0.0};
 					}
 				}
-
-				if sum == Vec3d::zeros() {
-					//println!("x: {}, y: {}", x, y);
-					sum = Vec3d::new(0.0,1.0,0.0);
-				}
-
 				line.push(sum);
 			}
 			tx.send((y, line)).unwrap();
