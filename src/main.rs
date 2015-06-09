@@ -3,6 +3,7 @@ extern crate threadpool;
 extern crate num_cpus;
 extern crate clock_ticks;
 extern crate docopt;
+extern crate image;
 
 use std::env;
 use std::f64::consts::{PI, FRAC_1_PI};
@@ -20,6 +21,8 @@ use rand::ThreadRng;
 mod vector_3d;
 
 use vector_3d::Vec3d;
+
+use std::path::Path;
 
 // Write the Docopt usage string.
 static USAGE: &'static str = "
@@ -479,6 +482,8 @@ fn main() {
 	let time_taken = clock_ticks::precise_time_s() - time_start;
 	println!("Finished rendering. Time taken: {}", Time::new(time_taken).get_time());
 	println!("DEBUG time_per_spp: {}", (time_taken as f64/(width*height*4*samps) as f64)*1e6);
+
+	//image::save_buffer(&Path::new("image.png"), &screen, width, height, image::RGB(8));
 
 	// We create file options to write
 	let file = OpenOptions::new().write(true).create(true).open(format!("image_{}_{}_{}.ppm", width, height, samps*4)).unwrap();

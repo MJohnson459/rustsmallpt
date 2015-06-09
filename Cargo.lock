@@ -3,11 +3,17 @@ name = "smallpt"
 version = "0.1.0"
 dependencies = [
  "clock_ticks 0.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "docopt 0.6.64 (registry+https://github.com/rust-lang/crates.io-index)",
+ "docopt 0.6.66 (registry+https://github.com/rust-lang/crates.io-index)",
+ "image 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "threadpool 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "byteorder"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "clock_ticks"
@@ -19,7 +25,7 @@ dependencies = [
 
 [[package]]
 name = "docopt"
-version = "0.6.64"
+version = "0.6.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "regex 0.1.33 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -28,9 +34,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "enum_primitive"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "num 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "image"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "byteorder 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "enum_primitive 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num 0.1.25 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "libc"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "num"
+version = "0.1.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "rand 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "num_cpus"
@@ -53,12 +86,12 @@ name = "regex"
 version = "0.1.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "regex-syntax 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex-syntax 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "regex-syntax"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
