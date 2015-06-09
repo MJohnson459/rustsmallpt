@@ -109,6 +109,10 @@ pub fn to_int(x: f64) -> i32 {
 	(clamp(x).powf(1.0/2.2)*255.0+0.5) as i32
 }
 
+pub fn to_u8(x: f64) -> u8 {
+	(clamp(x).powf(1.0/2.2)*255.0+0.5) as u8
+}
+
 
 pub struct Scene {
 	pub spheres: Vec<Sphere>
@@ -483,7 +487,18 @@ fn main() {
 	println!("Finished rendering. Time taken: {}", Time::new(time_taken).get_time());
 	println!("DEBUG time_per_spp: {}", (time_taken as f64/(width*height*4*samps) as f64)*1e6);
 
-	//image::save_buffer(&Path::new("image.png"), &screen, width, height, image::RGB(8));
+	let mut buffer = Vec::<u8>::with_capacity((width*height*3) as usize);
+	unsafe { buffer.set_len((width*height*3) as usize); }
+
+
+	for h in 0..height {
+		for w in 0..width {
+			buffer[h*width + width*3] = to_u8(screen[h][w].x);
+			buffer[h*width + width*3 + 1] = to_u8(screen[h][w].y);
+			buffer[h*width + width*3 + 2] = to_u8(screen[h][w].z);
+		}
+	}
+	image::save_buffer(&Path::new("image.png"), &buffer, width as u32, height as u32, image::RGB(8));
 
 	// We create file options to write
 	let file = OpenOptions::new().write(true).create(true).open(format!("image_{}_{}_{}.ppm", width, height, samps*4)).unwrap();
