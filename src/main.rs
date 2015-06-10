@@ -186,20 +186,20 @@ impl Scene {
 		let obj: Sphere = self.spheres[id].clone();  // the hit object
 
 		let intersect_point: Vec3d = ray.origin + ray.direction*t; // point on sphere where intersects
-		let n: Vec3d = (&intersect_point - &obj.position).normalise(); // surface normal of intersection point
-		let nl: Vec3d; // corrected normal (ie internal or external intersection)
-		if n.dot(&ray.direction) < 0.0 { // dot product negative if ray is internal
-			nl = n;
+		let surface_normal: Vec3d = (&intersect_point - &obj.position).normalise(); // surface light_normal of intersection point
+		let light_normal: Vec3d; // corrected light_normal (ie internal or external intersection)
+		if surface_normal.dot(&ray.direction) < 0.0 { // dot product negative if ray is internal
+			light_normal = surface_normal;
 		} else {
-			nl = n*-1.0;
+			light_normal = surface_normal*-1.0;
 		}
 
 		//println!("ray: {:?}",ray);
 		//println!("t: {:?}",t);
 		//println!("obj: {:?}",obj);
 		//println!("x: {:?}",x);
-		//println!("n: {:?}",n);
-		//println!("nl: {:?}",nl);
+		//println!("surface_normal: {:?}",surface_normal);
+		//println!("light_normal: {:?}",light_normal);
 
 		let mut f: Vec3d = obj.color.clone();
 
@@ -224,11 +224,11 @@ impl Scene {
 
 		match obj.reflection {
 			ReflectType::DIFF => {
-				let r1: f64 = 2.0*PI*rng.next_f64();
+				let random_angle: f64 = 2.0*PI*rng.next_f64();
 				let r2: f64 = rng.next_f64();
 				let r2s = r2.sqrt();
 
-				let w: Vec3d = nl.clone();
+				let w: Vec3d = light_normal.clone();
 				let u: Vec3d;
 				if w.x.abs() > 0.1 {
 					u = (Vec3d{x:0.0, y:1.0,z:0.0}.cross(w)).normalise();
@@ -240,8 +240,8 @@ impl Scene {
 
 				let v: Vec3d = w.cross(u);
 
-				let d: Vec3d = (u*r1.cos()*r2s + v*r1.sin()*r2s + w*(1.0-r2).sqrt()).normalise();
-				assert!((d.length() - 1.0).abs() < 0.001);
+				let random_direction: Vec3d = (u*random_angle.cos()*r2s + v*random_angle.sin()*r2s + w*(1.0-r2).sqrt()).normalise();
+				assert!((random_direction.length() - 1.0).abs() < 0.001);
 
 
 				let mut e: Vec3d = Vec3d::zeros();
@@ -273,27 +273,27 @@ impl Scene {
 					let (intersects, _, id) = self.intersect(&Ray{origin: intersect_point, direction: l});
 					if intersects && id == i {
 						let omega: f64 = 2.0*PI*(1.0-cos_a_max);
-						e = e + f.mult(sphere.emission*l.dot(&nl)*omega)*FRAC_1_PI;
+						e = e + f.mult(sphere.emission*l.dot(&light_normal)*omega)*FRAC_1_PI;
 					}
 				}*/
 
 				//println!("obj.emission DIFF u: {:?}, v: {:?}, w: {:?}, r1: {:?}, r2s: {:?}", u, v, w, r1, r2s);
-				let fmu = f.mult(self.radiance(&Ray{origin: intersect_point, direction: d}, depth, rng, 1.0));
+				let fmu = f.mult(self.radiance(&Ray{origin: intersect_point, direction: random_direction}, depth, rng, 1.0));
 				//println!("obj.emission DIFF - fmu.x: {}, fmu.y: {}, fmu.z: {}, depth: {}", fmu.x, fmu.y, fmu.z, depth);
 				//println!("obj.emission.x: {}, obj.emission.y: {}, obj.emission.z: {}", obj.emission.x, obj.emission.y, obj.emission.z);
 				return obj.emission*(E as f64) + e + fmu;
 			},
 			ReflectType::SPEC => {
 				//println!("obj.emission SPEC, depth: {}", depth);
-				let d: Vec3d = ray.direction-(n*2.0*n.dot(&ray.direction));
+				let d: Vec3d = ray.direction-(surface_normal*2.0*surface_normal.dot(&ray.direction));
 				return obj.emission + f.mult(self.radiance(&Ray{origin: intersect_point, direction: d}, depth, rng, 1.0));
 			},
 				_ => {}
 
 		}
 
-		let refl_ray: Ray = Ray{origin: intersect_point, direction: ray.direction-n*2.0*n.dot(&ray.direction)}; // Ideal dielectric REFRACTION
-		let into: bool = n.dot(&nl) > 0.0;
+		let refl_ray: Ray = Ray{origin: intersect_point, direction: ray.direction-surface_normal*2.0*surface_normal.dot(&ray.direction)}; // Ideal dielectric REFRACTION
+		let into: bool = surface_normal.dot(&light_normal) > 0.0;
 
 		let nc: f64 = 1.0;
 		let nt: f64 = 1.5;
@@ -303,7 +303,7 @@ impl Scene {
 		} else {
 			nnt = nt/nc;
 		}
-		let ddn: f64 =ray.direction.dot(&nl);
+		let ddn: f64 =ray.direction.dot(&light_normal);
 		let cos2t: f64 = 1.0 - nnt * nnt * (1.0 - ddn * ddn);
 		if cos2t < 0.0 { // Total internal reflection
 			//println!("obj.emission cos2t < 0.0");
@@ -313,9 +313,9 @@ impl Scene {
 		let tdir: Vec3d;
 
 		if into {
-			tdir = (ray.direction*nnt - n*(1.0*(ddn*nnt+cos2t.sqrt()))).normalise();
+			tdir = (ray.direction*nnt - surface_normal*(1.0*(ddn*nnt+cos2t.sqrt()))).normalise();
 		} else {
-			tdir = (ray.direction*nnt - n*(-1.0*(ddn*nnt+cos2t.sqrt()))).normalise();
+			tdir = (ray.direction*nnt - surface_normal*(-1.0*(ddn*nnt+cos2t.sqrt()))).normalise();
 		}
 
 		let a: f64 = nt- nc;
@@ -326,7 +326,7 @@ impl Scene {
 		if into {
 			c = 1.0 + ddn;
 		} else {
-			c = 1.0 - tdir.dot(&n);
+			c = 1.0 - tdir.dot(&surface_normal);
 		}
 
 		let re: f64 = r0+(1.0-r0)*c.powi(5);
