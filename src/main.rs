@@ -8,7 +8,6 @@ extern crate image;
 use std::env;
 use std::f64::consts::{PI, FRAC_1_PI};
 use std::io::BufWriter;
-use std::fs::{OpenOptions};
 use std::io::Write;
 use std::io;
 use std::sync::Arc;
@@ -412,9 +411,6 @@ fn main() {
 	let threadpool = ThreadPool::new(num_threads);
 	let (tx, rx) = channel();
 
-	let mut image = Vec::<Vec3d>::with_capacity((width*height) as usize);
-	unsafe { image.set_len((width*height) as usize); }
-
 	let time_start = clock_ticks::precise_time_s();
 
 	for y in 0..height {
@@ -468,8 +464,6 @@ fn main() {
 		});
 	}
 
-
-
 	let mut left = height;
 	let mut screen : Vec<Vec<Vec3d>> = Vec::new();
 	for _y in 0..height {
@@ -487,33 +481,29 @@ fn main() {
 	println!("Finished rendering. Time taken: {}", Time::new(time_taken).get_time());
 	println!("DEBUG time_per_spp: {}", (time_taken as f64/(width*height*4*samps) as f64)*1e6);
 
+	let image_name = format!("image_{}_{}_{}.png", width, height, samps*4);
+	save_image(&screen, &image_name);
+}
+
+
+pub fn save_image(image: &Vec<Vec<Vec3d>>, image_name: &str) {
+	let height = image.len();
+	let width = image[0].len();
+
 	let mut buffer = Vec::<u8>::with_capacity((width*height*3) as usize);
 	unsafe { buffer.set_len((width*height*3) as usize); }
 
 
 	for h in 0..height {
 		for w in 0..width {
-			buffer[h*width + width*3] = to_u8(screen[h][w].x);
-			buffer[h*width + width*3 + 1] = to_u8(screen[h][w].y);
-			buffer[h*width + width*3 + 2] = to_u8(screen[h][w].z);
+			let h2 = height - h - 1;
+			buffer[h2*width*3 + w*3] = to_u8(image[h][w].x);
+			buffer[h2*width*3 + w*3 + 1] = to_u8(image[h][w].y);
+			buffer[h2*width*3 + w*3 + 2] = to_u8(image[h][w].z);
 		}
 	}
-	image::save_buffer(&Path::new("image.png"), &buffer, width as u32, height as u32, image::RGB(8));
 
-	// We create file options to write
-	let file = OpenOptions::new().write(true).create(true).open(format!("image_{}_{}_{}.ppm", width, height, samps*4)).unwrap();
-
-	// We create a buffered writer from the file we get
-	let mut writer = BufWriter::new(&file);
-	// Then we write to the file. write_all() calls flush() after the write as well.
-	let mut b = format!("P3\n{} {}\n{}\n", width, height, 255).into_bytes();
-	writer.write_all(&b);
-	for i in (0..height as usize).rev() {
-		for j in 0..width as usize {
-			b = format!("{} {} {}\n", to_int(screen[i][j].x), to_int(screen[i][j].y), to_int(screen[i][j].z)).into_bytes();
-			writer.write_all(&b);
-		}
-	}
+	image::save_buffer(&Path::new(image_name), &buffer, width as u32, height as u32, image::RGB(8));
 }
 
 
