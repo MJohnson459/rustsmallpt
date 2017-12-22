@@ -4,7 +4,7 @@ SmallPT
 A "small" implementation of a path tracing algorithm
 
 Usage:
-  cargo run <height> <width> <iterations>
+  `cargo run <width> <height> <iterations>`
 
 Disclaimer
 ==========
