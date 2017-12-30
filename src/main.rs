@@ -236,7 +236,7 @@ impl Scene {
 
 		depth = depth + 1;
 		if depth > 5 || p == 0.0 {
-			if rng.gen::<f64>() < p {
+			if rng.next_f64() < p {
 				f = f*(1.0/p); // normalise colour [0,1]
 			} else {
 				// This might be at the wrong if statement
@@ -247,8 +247,8 @@ impl Scene {
 		match obj.reflection {
 			ReflectType::DIFF => {
 				let random_angle: f64 = 2.0*PI*rng.next_f64();
-				let r2: f64 = rng.next_f64();
-				let r2s = r2.sqrt();
+				let random: f64 = rng.next_f64();
+				let r2s = random.sqrt();
 
 				let w: Vec3d = light_normal.clone();
 				let u: Vec3d;
@@ -257,12 +257,11 @@ impl Scene {
 				} else {
 					u = (Vec3d{x:1.0, y:0.0,z:0.0}.cross(w)).normalise();
 				}
-				//println!("obj.emission DIFF w: {:?}, u: {:?}", w, u);
 				assert!((u.length() - 1.0).abs() < 0.001);
 
 				let v: Vec3d = w.cross(u);
 
-				let random_direction: Vec3d = (u*random_angle.cos()*r2s + v*random_angle.sin()*r2s + w*(1.0-r2).sqrt()).normalise();
+				let random_direction: Vec3d = (u*random_angle.cos()*r2s + v*random_angle.sin()*r2s + w*(1.0-random).sqrt()).normalise();
 				assert!((random_direction.length() - 1.0).abs() < 0.001);
 
 
@@ -299,10 +298,7 @@ impl Scene {
 					}
 				}*/
 
-				//println!("obj.emission DIFF u: {:?}, v: {:?}, w: {:?}, r1: {:?}, r2s: {:?}", u, v, w, r1, r2s);
 				let fmu = f.mult(self.radiance(&Ray{origin: intersect_point, direction: random_direction}, depth, rng, 1.0));
-				//println!("obj.emission DIFF - fmu.x: {}, fmu.y: {}, fmu.z: {}, depth: {}", fmu.x, fmu.y, fmu.z, depth);
-				//println!("obj.emission.x: {}, obj.emission.y: {}, obj.emission.z: {}", obj.emission.x, obj.emission.y, obj.emission.z);
 				return obj.emission*(emission as f64) + e + fmu;
 			},
 			ReflectType::SPEC => {
@@ -401,7 +397,6 @@ pub struct Params {
 pub fn single_row(params: Params, y: usize, scene: Arc<Scene>) -> Vec<Vec3d> {
 	let mut rng = rand::thread_rng();
 	let mut line = Vec::with_capacity(params.width);
-	let mut r: Vec3d = Vec3d{x:0.0, y: 0.0, z: 0.0};
 
 	let fwidth = params.width as f64;
 	let fheight = params.height as f64;
@@ -409,39 +404,36 @@ pub fn single_row(params: Params, y: usize, scene: Arc<Scene>) -> Vec<Vec3d> {
 
 	for x in 0..params.width {
 		let mut sum = Vec3d{x:0.0,y:0.0,z:0.0};
-		for sy in 0..2 {
-			for sx in 0..2 {
+		for sample_y in 0..2 {
+			for sample_x in 0..2 {
+				let mut r: Vec3d = Vec3d{x:0.0, y: 0.0, z: 0.0};
 				for _ in 0..params.samps {
-					let r1: f64 = 2.0*rng.gen::<f64>(); //erand48(xi);
-					let r2: f64 = 2.0*rng.gen::<f64>(); //erand48(xi);
+					let rand1: f64 = 2.0*rng.next_f64(); //erand48(xi);
+					let rand2: f64 = 2.0*rng.next_f64(); //erand48(xi);
 
 					let dx: f64;
 					let dy: f64;
 
-					if r1 < 1.0 {
-						dx = r1.sqrt() - 1.0;
+					if rand1 < 1.0 {
+						dx = rand1.sqrt() - 1.0;
 					} else {
-						dx = 1.0 - (2.0-r1).sqrt();
+						dx = 1.0 - (2.0-rand1).sqrt();
 					}
 
-					if r2 < 1.0 {
-						dy = r2.sqrt() - 1.0;
+					if rand2 < 1.0 {
+						dy = rand2.sqrt() - 1.0;
 					} else {
-						dy = 1.0 - (2.0-r2).sqrt();
+						dy = 1.0 - (2.0-rand2).sqrt();
 					}
 
-					let mut d: Vec3d = scene.cam.cx*((((sx as f64)+0.5 + dx)/2.0 + (x as f64)) / fwidth - 0.5) +
-									scene.cam.cy*((((sy as f64)+0.5 + dy)/2.0 + (y as f64)) / fheight - 0.5) + scene.cam.ray.direction;
-					//println!("original dir: {:?}", d);
+					let mut d: Vec3d = scene.cam.cx*((((sample_x as f64)+0.5 + dx)/2.0 + (x as f64)) / fwidth - 0.5) +
+									scene.cam.cy*((((sample_y as f64)+0.5 + dy)/2.0 + (y as f64)) / fheight - 0.5) + scene.cam.ray.direction;
 					let rad: Vec3d = scene.radiance(&Ray{origin: scene.cam.ray.origin + d*140.0, direction: d.normalise()}, 0, &mut rng, 1.0);
-					//println!("rad.x: {}, rad.y: {}, rad.z: {}", rad.x, rad.y, rad.z);
 					r = r + rad*(1.0/fsamps as f64);
-
 				}
 				let v: Vec3d = Vec3d{x: clamp(r.x), y: clamp(r.y), z: clamp(r.z)};
 				//println!("v.x: {}, v.y: {}, v.z: {}", v.x, v.y, v.z);
 				sum = sum + v*0.25;
-				r = Vec3d{x:0.0,y:0.0,z:0.0};
 			}
 		}
 		line.push(sum);
