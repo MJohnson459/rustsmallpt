@@ -543,25 +543,35 @@ pub fn save_image(image: &Vec<Vec<Vec3d>>, image_name: &str) {
 
 
 
-// #![feature(test)]
 
-// extern crate test;
 
 #[cfg(test)]
+// extern crate test;
+
 mod tests {
 	use super::*;
-	use vector_3d::Vec3d;
-	use rand;
-	use test::Bencher;
+//	use test::Bencher;
 
+	#[test]
+	fn test_single_row() {
+		let width = 1920;
+		let height = 1080;
+		let samps = 10;
+		let params = Arc::new(Params {width: width, height: height, samps: samps});
+		let scene = Arc::new(Scene::new2(width, height));
+		let result = single_row(params, 0, scene);
+		assert_eq!(result.len(), width);
+
+	}
+/*
 	#[bench]
 	fn bench_single_row(b: &mut Bencher) {
 		let params = Arc::new(Params {width: 1080, height: 1920, samps: 100});
 		let y = 0;
 		let scene = Arc::new(Scene::new2(1080, 1920));
 		b.iter(|| single_row(params, y, scene));
-	}
-
+	} */
+/*
 	#[test]
 	fn test_intersection() {
 		let sphere = Sphere {radius:1e5, position: Vec3d{x:1e5+1.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.25,z:0.25}, reflection: ReflectType::DIFF};
@@ -644,5 +654,5 @@ mod tests {
 		}
 
 		assert!(sum != Vec3d::zeros());
-	}
+	}*/
 }

@@ -142,12 +142,11 @@ impl PartialEq for Vec3d {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use clock_ticks;
 
 	#[test]
 	fn test_normalise() {
 		let mut v: Vec3d = Vec3d{x: -0.0, y: 0.001017, z: -0.0};
-		let mut w: Vec3d = Vec3d{x: 0.0, y: -0.003064, z: 0.0}.normalise();
+		let w: Vec3d = Vec3d{x: 0.0, y: -0.003064, z: 0.0}.normalise();
 
 		let u: Vec3d = v.normalise();
 
@@ -182,23 +181,23 @@ mod tests {
 
 		let w = Vec3d { x: 0.003064, y: 0.999991, z: 0.003064 };
 
-		let u1 = (Vec3d{x:0.0,y:1.0,z:0.0}.cross(w));
-		let u2 = (Vec3d{x:1.0,y:0.0,z:0.0}.cross(w));
+		let u1 = Vec3d{x:0.0,y:1.0,z:0.0}.cross(w);
+		let u2 = Vec3d{x:1.0,y:0.0,z:0.0}.cross(w);
 
 		assert_eq!(u1, Vec3d{x: 0.003064, y: 0.0, z: -0.003064});
 		assert_eq!(u2, Vec3d{x: 0.0, y: -0.003064, z: 0.999991});
 	}
 
 
-	#[test]
+	/*#[test]
 	fn bench_normalise() {
 		let mut x = Vec3d::new(140.5,13.6,127.4);
-		let time_start = clock_ticks::precise_time_s();
+		let time_start = time::precise_time_s();
 		for _ in 0..10000000 {
 			x.normalise();
 		}
-		let final_time = clock_ticks::precise_time_s() - time_start;
+		let final_time = time::precise_time_s() - time_start;
 		println!("final_time: {}", final_time);
 		assert!(final_time < 0.1);
-	}
+	}*/
 }
