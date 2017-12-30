@@ -3,6 +3,9 @@ name = "smallpt"
 version = "0.2.0"
 authors = ["MJohnson459 <mjohnson459@gmail.com>"]
 
+[features]
+unstable = []
+
 [dependencies]
 rand = "*"
 threadpool = "*"
@@ -10,3 +13,5 @@ num_cpus = "*"
 docopt = "*"
 image = "*"
 time = "*"
+
+

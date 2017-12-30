@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "unstable", feature(test))]
+
 extern crate rand;
 extern crate threadpool;
 extern crate num_cpus;
@@ -389,13 +391,14 @@ impl Time {
 	}
 }
 
+#[derive(Copy, Clone)]
 pub struct Params {
-	pub width: usize,
-	pub height: usize,
-	pub samps: usize
+	width: usize,
+	height: usize,
+	samps: usize
 }
 
-pub fn single_row(params: Arc<Params>, y: usize, scene: Arc<Scene>) -> Vec<Vec3d> {
+pub fn single_row(params: Params, y: usize, scene: Arc<Scene>) -> Vec<Vec3d> {
 	let mut rng = rand::thread_rng();
 	let mut line = Vec::with_capacity(params.width);
 	let mut r: Vec3d = Vec3d{x:0.0, y: 0.0, z: 0.0};
@@ -463,7 +466,7 @@ fn main() {
 	let height: usize = args.get_str("<height>").parse().unwrap_or(768);
 	let samps: usize = args.get_str("<samples>").parse().unwrap_or(100);
 
-	let params = Arc::new(Params {width: width, height: height, samps: samps});
+	let params = Params {width: width, height: height, samps: samps};
 
 	println!("width: {}, height: {}, samples: {}", width, height, samps);
 
@@ -490,7 +493,6 @@ fn main() {
 	for y in 0..height {
 		let tx = tx.clone();
 		let scene = scene.clone();
-		let params = params.clone();
 
 		threadpool.execute(move || {
 			let line = single_row(params, y, scene);
@@ -544,42 +546,24 @@ pub fn save_image(image: &Vec<Vec<Vec3d>>, image_name: &str) {
 
 
 
-
 #[cfg(test)]
-// extern crate test;
-
 mod tests {
 	use super::*;
-//	use test::Bencher;
 
 	#[test]
 	fn test_single_row() {
-		let width = 1920;
-		let height = 1080;
-		let samps = 10;
-		let params = Arc::new(Params {width: width, height: height, samps: samps});
-		let scene = Arc::new(Scene::new2(width, height));
-		let result = single_row(params, 0, scene);
-		assert_eq!(result.len(), width);
-
+		let params = Params {width: 100, height: 100, samps: 1};
+		let scene = Arc::new(Scene::new2(params.width, params.height));
+		let result = single_row(params, 0, scene.clone());
+		assert_eq!(result.len(), params.width);
 	}
-/*
-	#[bench]
-	fn bench_single_row(b: &mut Bencher) {
-		let params = Arc::new(Params {width: 1080, height: 1920, samps: 100});
-		let y = 0;
-		let scene = Arc::new(Scene::new2(1080, 1920));
-		b.iter(|| single_row(params, y, scene));
-	} */
+
 /*
 	#[test]
 	fn test_intersection() {
 		let sphere = Sphere {radius:1e5, position: Vec3d{x:1e5+1.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.25,z:0.25}, reflection: ReflectType::DIFF};
 		let ray = Ray { origin: Vec3d { x: 14.234, y: 46.039, z: 14.234 }, direction: Vec3d { x: -0.702, y: -0.117, z: -0.702 } };
 
-		println!("sphere: {:?}", sphere);
-		println!("ray: {:?}", ray);
-		println!("sphere.intersect(&ray): {:?}", sphere.intersect(&ray));
 		//assert_eq!(sphere.intersect(&ray), 18.85);
 	}
 
@@ -593,66 +577,21 @@ mod tests {
 		assert!(float_eq(dist, 31.33));
 
 		let result = scene.radiance(&ray, 0, 1);
-		println!("result: {:?}", result);
 		assert!(result != Vec3d::zeros());
-	}
-
-	#[test]
-	fn test_light_scene() {
-		let x = 30;
-		let y = 43;
-
-		let width = 50;
-		let height = 50;
-		let samps = 1;
-
-		let scene = Scene::new();
-		let mut r: Vec3d = Vec3d{x:0.0, y: 0.0, z: 0.0};
-
-		let cam: Ray = Ray{origin: Vec3d{x:50.0,y:50.0,z:295.6}, direction: Vec3d{x:0.0,y:-0.042612, z:-1.0}.normalise()};
-
-		let cx: Vec3d = Vec3d{x:(width as f64)*0.5135/(height as f64),y:0.0,z:0.0}; // x direction increment
-		let cy: Vec3d = (cx % cam.direction).normalise()*0.5135;                    // y direction increment
-
-		let mut sum = Vec3d{x:0.0,y:0.0,z:0.0};
-		for sy in 0..2 {
-			for sx in 0..2 {
-				for _ in 0..samps {
-					let r1: f64 = 2.0*rand::random::<f64>(); //erand48(xi);
-					let r2: f64 = 2.0*rand::random::<f64>(); //erand48(xi);
-
-					let dx: f64;
-					let dy: f64;
-
-					if r1 < 1.0 {
-						dx = r1.sqrt() - 1.0;
-					} else {
-						dx = 1.0 - (2.0-r1).sqrt();
-					}
-
-					if r2 < 1.0 {
-						dy = r2.sqrt() - 1.0;
-					} else {
-						dy = 1.0 - (2.0-r2).sqrt();
-					}
-
-					let mut d: Vec3d = cx*((((sx as f64)+0.5 + dx)/2.0 + (x as f64)) / (width as f64) - 0.5) +
-					cy*((((sy as f64)+0.5 + dy)/2.0 + (y as f64)) / (height as f64) - 0.5) + cam.direction;
-					println!("original dir: {:?}", d);
-					let rad: Vec3d = scene.radiance(&Ray{origin: cam.origin + d*140.0, direction: d.normalise()}, 0, 1);
-					println!("rad: {:?}", rad);
-					r = r + rad*(1.0/samps as f64);
-					println!("r: {:?}", r);
-
-				}
-				let v: Vec3d = Vec3d{x: clamp(r.x), y: clamp(r.y), z: clamp(r.z)};
-				println!("v: {:?}", v);
-				sum = sum + v*0.25;
-				println!("sum: {:?}", sum);
-				r = Vec3d{x:0.0,y:0.0,z:0.0};
-			}
-		}
-
-		assert!(sum != Vec3d::zeros());
 	}*/
+}
+
+#[cfg(all(feature = "unstable", test))]
+mod bench {
+	extern crate test;
+
+	use super::*;
+	use self::test::Bencher;
+
+	#[bench]
+	fn bench_single_row(b: &mut Bencher) {
+		let params = Params {width: 100, height: 100, samps: 10};
+		let scene = Arc::new(Scene::new2(params.width, params.height));
+		b.iter(|| single_row(params, 0, scene.clone()));
+	}
 }
