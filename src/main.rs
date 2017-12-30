@@ -1,13 +1,12 @@
 extern crate rand;
 extern crate threadpool;
 extern crate num_cpus;
-extern crate clock_ticks;
+extern crate time;
 extern crate docopt;
 extern crate image;
 
 use std::env;
-use std::f64::consts::{PI, FRAC_1_PI};
-use std::io::BufWriter;
+use std::f64::consts::PI;
 use std::io::Write;
 use std::io;
 use std::sync::Arc;
@@ -113,28 +112,28 @@ pub fn to_u8(x: f64) -> u8 {
 }
 
 pub struct Camera {
-    ray: Ray,
-    cx: Vec3d,
-    cy: Vec3d
+	ray: Ray,
+	cx: Vec3d,
+	cy: Vec3d
 }
 
 impl Camera {
-    pub fn new(width: usize, height: usize, fov: f64) -> Camera {
-        let ray: Ray = Ray{origin: Vec3d{x:50.0,y:50.0,z:295.6}, direction: Vec3d{x:0.0,y:-0.042612, z:-1.0}.normalise()};
-        let cx: Vec3d = Vec3d{x:(width as f64)*fov/(height as f64),y:0.0,z:0.0}; // x direction increment
-        let cy: Vec3d = (cx % ray.direction).normalise()*fov;                    // y direction increment
+	pub fn new(width: usize, height: usize, fov: f64) -> Camera {
+		let ray: Ray = Ray{origin: Vec3d{x:50.0,y:50.0,z:295.6}, direction: Vec3d{x:0.0,y:-0.042612, z:-1.0}.normalise()};
+		let cx: Vec3d = Vec3d{x:(width as f64)*fov/(height as f64),y:0.0,z:0.0}; // x direction increment
+		let cy: Vec3d = (cx % ray.direction).normalise()*fov;					// y direction increment
 
-        return Camera { 
-            ray: ray, 
-            cx: cx, 
-            cy: cy
-        };
-    }
+		return Camera {
+			ray: ray,
+			cx: cx,
+			cy: cy
+		};
+	}
 }
 
 pub struct Scene {
 	pub spheres: Vec<Sphere>,
-    pub cam: Camera
+	pub cam: Camera
 }
 
 impl Scene {
@@ -152,7 +151,7 @@ impl Scene {
 
 		Scene {
 			spheres: spheres,
-            cam: Camera::new(width, height, 0.5135)
+			cam: Camera::new(width, height, 0.5135)
 		}
 	}
 
@@ -171,7 +170,7 @@ impl Scene {
 		//spheres.push(Sphere {radius:1.5, position: Vec3d{x:50.0,y:81.6-16.5,z:81.6}, emission: Vec3d{x:4.0,y:4.0,z:4.0}*100.0, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // light
 		Scene {
 			spheres: spheres,
-            cam: Camera::new(width, height, 0.5135)
+			cam: Camera::new(width, height, 0.5135)
 		}
 	}
 
@@ -195,7 +194,7 @@ impl Scene {
 		(t < inf, t, id)
 	}
 
-	pub fn radiance(&self, ray: &Ray, mut depth: i32, rng: &mut ThreadRng, E: f64) -> Vec3d {
+	pub fn radiance(&self, ray: &Ray, mut depth: i32, rng: &mut ThreadRng, emission: f64) -> Vec3d {
 
 		//println!("radiance - depth: {},  ray: {:?}", depth, ray);
 		let (intersects, t, id) = self.intersect(ray);
@@ -239,7 +238,7 @@ impl Scene {
 				f = f*(1.0/p); // normalise colour [0,1]
 			} else {
 				// This might be at the wrong if statement
-				return obj.emission*(E as f64);
+				return obj.emission*(emission as f64);
 			}
 		}
 
@@ -265,13 +264,13 @@ impl Scene {
 				assert!((random_direction.length() - 1.0).abs() < 0.001);
 
 
-				let mut e: Vec3d = Vec3d::zeros();
+				let e: Vec3d = Vec3d::zeros();
 /*
 				for i in 0..self.spheres.len() {
 					let sphere = &self.spheres[i];
 					if sphere.emission.x <= 0.0 &&
-					   sphere.emission.y <= 0.0 &&
-					   sphere.emission.z <= 0.0 { continue; };
+						sphere.emission.y <= 0.0 &&
+						sphere.emission.z <= 0.0 { continue; };
 
 					let sw: Vec3d = sphere.position - intersect_point;
 					let su: Vec3d;
@@ -302,7 +301,7 @@ impl Scene {
 				let fmu = f.mult(self.radiance(&Ray{origin: intersect_point, direction: random_direction}, depth, rng, 1.0));
 				//println!("obj.emission DIFF - fmu.x: {}, fmu.y: {}, fmu.z: {}, depth: {}", fmu.x, fmu.y, fmu.z, depth);
 				//println!("obj.emission.x: {}, obj.emission.y: {}, obj.emission.z: {}", obj.emission.x, obj.emission.y, obj.emission.z);
-				return obj.emission*(E as f64) + e + fmu;
+				return obj.emission*(emission as f64) + e + fmu;
 			},
 			ReflectType::SPEC => {
 				//println!("obj.emission SPEC, depth: {}", depth);
@@ -391,60 +390,60 @@ impl Time {
 }
 
 pub struct Params {
-    pub width: usize,
-    pub height: usize,
-    pub samps: usize
+	pub width: usize,
+	pub height: usize,
+	pub samps: usize
 }
 
-pub fn singleRow(params: Arc<Params>, y: usize, scene: Arc<Scene>) -> Vec<Vec3d> {
-    let mut rng = rand::thread_rng();
-    let mut line = Vec::with_capacity(params.width);
-    let mut r: Vec3d = Vec3d{x:0.0, y: 0.0, z: 0.0};
+pub fn single_row(params: Arc<Params>, y: usize, scene: Arc<Scene>) -> Vec<Vec3d> {
+	let mut rng = rand::thread_rng();
+	let mut line = Vec::with_capacity(params.width);
+	let mut r: Vec3d = Vec3d{x:0.0, y: 0.0, z: 0.0};
 
-    let fwidth = params.width as f64;
-    let fheight = params.height as f64;
-    let fsamps = params.samps as f64;
+	let fwidth = params.width as f64;
+	let fheight = params.height as f64;
+	let fsamps = params.samps as f64;
 
-    for x in 0..params.width {
-        let mut sum = Vec3d{x:0.0,y:0.0,z:0.0};
-        for sy in 0..2 {
-            for sx in 0..2 {
-                for _ in 0..params.samps {
-                    let r1: f64 = 2.0*rng.gen::<f64>(); //erand48(xi);
-                    let r2: f64 = 2.0*rng.gen::<f64>(); //erand48(xi);
+	for x in 0..params.width {
+		let mut sum = Vec3d{x:0.0,y:0.0,z:0.0};
+		for sy in 0..2 {
+			for sx in 0..2 {
+				for _ in 0..params.samps {
+					let r1: f64 = 2.0*rng.gen::<f64>(); //erand48(xi);
+					let r2: f64 = 2.0*rng.gen::<f64>(); //erand48(xi);
 
-                    let dx: f64;
-                    let dy: f64;
+					let dx: f64;
+					let dy: f64;
 
-                    if r1 < 1.0 {
-                        dx = r1.sqrt() - 1.0;
-                    } else {
-                        dx = 1.0 - (2.0-r1).sqrt();
-                    }
+					if r1 < 1.0 {
+						dx = r1.sqrt() - 1.0;
+					} else {
+						dx = 1.0 - (2.0-r1).sqrt();
+					}
 
-                    if r2 < 1.0 {
-                        dy = r2.sqrt() - 1.0;
-                    } else {
-                        dy = 1.0 - (2.0-r2).sqrt();
-                    }
+					if r2 < 1.0 {
+						dy = r2.sqrt() - 1.0;
+					} else {
+						dy = 1.0 - (2.0-r2).sqrt();
+					}
 
-                    let mut d: Vec3d = scene.cam.cx*((((sx as f64)+0.5 + dx)/2.0 + (x as f64)) / fwidth - 0.5) +
-                                    scene.cam.cy*((((sy as f64)+0.5 + dy)/2.0 + (y as f64)) / fheight - 0.5) + scene.cam.ray.direction;
-                    //println!("original dir: {:?}", d);
-                    let rad: Vec3d = scene.radiance(&Ray{origin: scene.cam.ray.origin + d*140.0, direction: d.normalise()}, 0, &mut rng, 1.0);
-                    //println!("rad.x: {}, rad.y: {}, rad.z: {}", rad.x, rad.y, rad.z);
-                    r = r + rad*(1.0/fsamps as f64);
+					let mut d: Vec3d = scene.cam.cx*((((sx as f64)+0.5 + dx)/2.0 + (x as f64)) / fwidth - 0.5) +
+									scene.cam.cy*((((sy as f64)+0.5 + dy)/2.0 + (y as f64)) / fheight - 0.5) + scene.cam.ray.direction;
+					//println!("original dir: {:?}", d);
+					let rad: Vec3d = scene.radiance(&Ray{origin: scene.cam.ray.origin + d*140.0, direction: d.normalise()}, 0, &mut rng, 1.0);
+					//println!("rad.x: {}, rad.y: {}, rad.z: {}", rad.x, rad.y, rad.z);
+					r = r + rad*(1.0/fsamps as f64);
 
-                }
-                let v: Vec3d = Vec3d{x: clamp(r.x), y: clamp(r.y), z: clamp(r.z)};
-                //println!("v.x: {}, v.y: {}, v.z: {}", v.x, v.y, v.z);
-                sum = sum + v*0.25;
-                r = Vec3d{x:0.0,y:0.0,z:0.0};
-            }
-        }
-        line.push(sum);
-    }
-    return line;
+				}
+				let v: Vec3d = Vec3d{x: clamp(r.x), y: clamp(r.y), z: clamp(r.z)};
+				//println!("v.x: {}, v.y: {}, v.z: {}", v.x, v.y, v.z);
+				sum = sum + v*0.25;
+				r = Vec3d{x:0.0,y:0.0,z:0.0};
+			}
+		}
+		line.push(sum);
+	}
+	return line;
 }
 
 
@@ -464,7 +463,7 @@ fn main() {
 	let height: usize = args.get_str("<height>").parse().unwrap_or(768);
 	let samps: usize = args.get_str("<samples>").parse().unwrap_or(100);
 
-    let params = Arc::new(Params {width: width, height: height, samps: samps});
+	let params = Arc::new(Params {width: width, height: height, samps: samps});
 
 	println!("width: {}, height: {}, samples: {}", width, height, samps);
 
@@ -485,16 +484,16 @@ fn main() {
 	let threadpool = ThreadPool::new(num_threads);
 	let (tx, rx) = channel();
 
-    let scene = Arc::new(Scene::new2(width, height));
+	let scene = Arc::new(Scene::new2(width, height));
 
-	let time_start = clock_ticks::precise_time_s();
+	let time_start = time::precise_time_s();
 	for y in 0..height {
 		let tx = tx.clone();
 		let scene = scene.clone();
 		let params = params.clone();
 
 		threadpool.execute(move || {
-            let line = singleRow(params, y, scene);
+			let line = single_row(params, y, scene);
 			tx.send((y, line)).unwrap();
 		});
 	}
@@ -512,7 +511,7 @@ fn main() {
 		left -= 1;
 	}
 
-	let time_taken = clock_ticks::precise_time_s() - time_start;
+	let time_taken = time::precise_time_s() - time_start;
 	println!("Finished rendering. Time taken: {}", Time::new(time_taken).get_time());
 	println!("DEBUG time_per_spp: {}", (time_taken as f64/(width*height*4*samps) as f64)*1e6);
 
@@ -538,18 +537,30 @@ pub fn save_image(image: &Vec<Vec<Vec3d>>, image_name: &str) {
 		}
 	}
 
-	image::save_buffer(&Path::new(image_name), &buffer, width as u32, height as u32, image::RGB(8));
+	image::save_buffer(&Path::new(image_name), &buffer, width as u32, height as u32, image::RGB(8))
+		.ok().expect("Failed to save the image");
 }
 
 
 
+// #![feature(test)]
 
+// extern crate test;
 
 #[cfg(test)]
-mod test {
+mod tests {
 	use super::*;
 	use vector_3d::Vec3d;
 	use rand;
+	use test::Bencher;
+
+	#[bench]
+	fn bench_single_row(b: &mut Bencher) {
+		let params = Arc::new(Params {width: 1080, height: 1920, samps: 100});
+		let y = 0;
+		let scene = Arc::new(Scene::new2(1080, 1920));
+		b.iter(|| single_row(params, y, scene));
+	}
 
 	#[test]
 	fn test_intersection() {

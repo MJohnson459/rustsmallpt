@@ -1,12 +1,12 @@
 [package]
 name = "smallpt"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["MJohnson459 <mjohnson459@gmail.com>"]
 
 [dependencies]
 rand = "*"
 threadpool = "*"
 num_cpus = "*"
-clock_ticks = "0.0.6"
-docopt = "0.6.64"
-image = "0.3.8"
+docopt = "*"
+image = "*"
+time = "*"
