@@ -13,5 +13,5 @@ num_cpus = "*"
 docopt = "*"
 image = "*"
 time = "*"
-
+rayon = "*"
 

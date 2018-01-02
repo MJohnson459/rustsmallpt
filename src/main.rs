@@ -1,28 +1,23 @@
 #![cfg_attr(feature = "unstable", feature(test))]
 
-extern crate rand;
-extern crate threadpool;
-extern crate num_cpus;
-extern crate time;
 extern crate docopt;
 extern crate image;
+extern crate rand;
+extern crate rayon;
+extern crate time;
 
-use std::env;
-use std::f64::consts::PI;
-use std::io::Write;
-use std::io;
-use std::sync::Arc;
-use threadpool::ThreadPool;
-use std::sync::mpsc::channel;
 use docopt::Docopt;
+use image::ImageBuffer;
 use rand::Rng;
 use rand::ThreadRng;
+use rayon::prelude::*;
+use std::env;
+use std::f64::consts::PI;
+use std::path::Path;
 
 mod vector_3d;
-
 use vector_3d::Vec3d;
 
-use std::path::Path;
 
 // Write the Docopt usage string.
 static USAGE: &'static str = "
@@ -387,7 +382,7 @@ impl Time {
     }
 }
 
-fn update_pixel(x: f64, y: f64, width: f64, height: f64, samples: usize, scene: &Arc<Scene>) -> Vec3d {
+fn update_pixel(x: f64, y: f64, width: f64, height: f64, samples: usize, scene: &Scene) -> Vec3d {
     let mut rng = rand::thread_rng();
     let mut sum = Vec3d{x:0.0,y:0.0,z:0.0};
     for sample_y in 0..2 {
@@ -425,13 +420,13 @@ fn update_pixel(x: f64, y: f64, width: f64, height: f64, samples: usize, scene: 
     return sum;
 }
 
-pub fn single_row(y: usize, width: usize, height: usize, samples: usize, scene: Arc<Scene>) -> Vec<Vec3d> {
-    let mut line = Vec::with_capacity(width);
-
-    for x in 0..width {
-        line.push(update_pixel(x as f64, y as f64, width as f64, height as f64, samples, &scene));
-    }
-    return line;
+pub fn single_sample(width: usize, height: usize, samples: usize, scene: &Scene) -> Vec<Vec<Vec3d>> {
+//    let img = ImageBuffer::new(width, height);
+    (0..height).into_par_iter().map(|y| {
+        (0..width).into_par_iter().map(|x| {
+            update_pixel(x as f64, y as f64, width as f64, height as f64, samples, &scene)
+        }).collect()
+    }).collect()
 }
 
 
@@ -451,10 +446,7 @@ fn main() {
     let height: usize = args.get_str("<height>").parse().unwrap_or(768);
     let samples: usize = args.get_str("<samples>").parse().unwrap_or(100);
 
-
     println!("width: {}, height: {}, samples: {}", width, height, samples);
-
-    let num_threads = num_cpus::get();
 
     let time_per_spp: f64 = 3.659458e-6;
     let est_time: Time = Time::new(4.0*time_per_spp*(samples*width*height) as f64);
@@ -466,81 +458,49 @@ fn main() {
 
     println!("Estimated time [RELEASE]: {}", est_time.get_time());
 
-
-    let threadpool = ThreadPool::new(num_threads);
-    let (tx, rx) = channel();
-
-    let scene = Arc::new(Scene::new2(width, height));
-
+    let scene = Scene::new2(width, height);
     let time_start = time::precise_time_s();
-    for y in 0..height {
-        let tx = tx.clone();
-        let scene = scene.clone();
 
-        threadpool.execute(move || {
-            let line = single_row(y, width, height, samples, scene);
-            tx.send((y, line)).unwrap();
-        });
-    }
+    let screen = single_sample(width, height, samples, &scene);
+    let image = to_image(&screen);
 
-    let mut left = height;
-    let mut screen : Vec<Vec<Vec3d>> = Vec::new();
-    for _y in 0..height {
-        screen.push(Vec::new());
-    }
-    while left > 0 {
-        print!("Rendering ({} spp) {:.4}%...\r", samples * 4, 100.0 * (height - left) as f64 / height as f64);
-        io::stdout().flush().ok().expect("Could not flush stdout");
+    /*while left > 0 {
+        println!("Rendering ({} spp) {:.4}%...\r", samples * 4, 100.0 * (height - left) as f64 / height as f64);
         let (y, line) = rx.recv().unwrap();
         screen[y] = line;
         left -= 1;
-    }
+    }*/
 
     let time_taken = time::precise_time_s() - time_start;
     println!("Finished rendering. Time taken: {}", Time::new(time_taken).get_time());
     println!("DEBUG time_per_spp: {}", (time_taken as f64/(width*height*4*samples) as f64)*1e6);
 
     let image_name = format!("image_{}_{}_{}.png", width, height, samples*4);
-    save_image(&screen, &image_name);
+    image.save(&Path::new(&image_name)).unwrap();
 }
 
+pub fn to_image(screen: &Vec<Vec<Vec3d>>) -> ImageBuffer<image::Rgb<u8>, Vec<u8>> {
+    let height = screen.len();
+    let width = screen[0].len();
 
-pub fn save_image(image: &Vec<Vec<Vec3d>>, image_name: &str) {
-    let height = image.len();
-    let width = image[0].len();
-
-    let mut buffer = Vec::<u8>::with_capacity((width*height*3) as usize);
-    unsafe { buffer.set_len((width*height*3) as usize); }
-
-
-    for h in 0..height {
-        for w in 0..width {
-            let h2 = height - h - 1;
-            buffer[h2*width*3 + w*3] = to_u8(image[h][w].x);
-            buffer[h2*width*3 + w*3 + 1] = to_u8(image[h][w].y);
-            buffer[h2*width*3 + w*3 + 2] = to_u8(image[h][w].z);
-        }
-    }
-
-    image::save_buffer(&Path::new(image_name), &buffer, width as u32, height as u32, image::RGB(8))
-        .ok().expect("Failed to save the image");
+    ImageBuffer::from_fn(width as u32, height as u32, |x, y| {
+        image::Rgb([to_u8(screen[y as usize][x as usize].x), to_u8(screen[y as usize][x as usize].y), to_u8(screen[y as usize][x as usize].z)])
+    })
 }
-
-
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_single_row() {
+    fn test_single_sample() {
         let width = 100;
         let height = 100;
-        let samples = 10;
-        let scene = Arc::new(Scene::new2(width, height));
-        let result = single_row(0, width, height, samples, scene.clone());
-        assert_eq!(result.len(), width);
+        let samples = 1;
+        let scene = Scene::new2(width, height);
+        let result = single_sample(width, height, samples, &scene);
+        assert_eq!(result.len(), height);
+        assert_eq!(result[0].len(), width);
     }
 
 /*
@@ -574,20 +534,20 @@ mod bench {
     use self::test::Bencher;
 
     #[bench]
-    fn bench_single_row(b: &mut Bencher) {
+    fn bench_single_sample(b: &mut Bencher) {
         let width = 100;
         let height = 100;
-        let samples = 10;
-        let scene = Arc::new(Scene::new2(width, height));
-        b.iter(|| single_row(5, width, height, samples, scene.clone()));
+        let samples = 2;
+        let scene = Scene::new2(width, height);
+        b.iter(|| single_sample(width, height, samples, &scene));
     }
 
     #[bench]
     fn bench_update_pixel(b: &mut Bencher) {
         let width = 100;
         let height = 100;
-        let samples = 10;
-        let scene = Arc::new(Scene::new2(width, height));
+        let samples = 2;
+        let scene = Scene::new2(width, height);
         b.iter(|| update_pixel(5.0, 5.0, width as f64, height as f64, samples, &scene));
     }
 
