@@ -238,13 +238,6 @@ impl Scene {
             light_normal = surface_normal*-1.0;
         }
 
-        //println!("ray: {:?}",ray);
-        //println!("t: {:?}",t);
-        //println!("obj: {:?}",obj);
-        //println!("x: {:?}",x);
-        //println!("surface_normal: {:?}",surface_normal);
-        //println!("light_normal: {:?}",light_normal);
-
         let mut f: Vec3d = obj.color.clone();
 
         let p: f64; // brightest colour
@@ -344,38 +337,26 @@ impl Scene {
         let rp: f64 = re/p;
         let tp: f64 = tr/(1.0-p);
 
+
         if depth > 2 {
             if rng.next_f64() < p {
-                //println!("rand::random::<f64>() < p - depth: {}", depth);
-                return obj.emission + f.mult(self.radiance(&refl_ray, depth, rng, 1.0)*rp);
+                obj.emission + f.mult(self.radiance(&refl_ray, depth, rng, 1.0)*rp)
             } else {
-                //println!("rand::random::<f64>() >= p - depth: {}", depth);
-                return obj.emission + f.mult(self.radiance(&Ray{origin: intersect_point, direction: tdir}, depth, rng, 1.0)*tp);
+                obj.emission + f.mult(self.radiance(&Ray{origin: intersect_point, direction: tdir}, depth, rng, 1.0)*tp)
             }
         } else {
-            //println!("reflect ray: {}", depth);
-            return obj.emission + f.mult(self.radiance(&refl_ray, depth, rng, 1.0)*re+self.radiance(&Ray{origin: intersect_point, direction: tdir}, depth, rng, 1.0)*tr);
+            obj.emission + f.mult(self.radiance(&refl_ray, depth, rng, 1.0)*re+self.radiance(&Ray{origin: intersect_point, direction: tdir}, depth, rng, 1.0)*tr)
         }
     }
 
 }
 
-struct Time {
-    seconds: f64
-}
+pub fn format_time(seconds: f64) -> String {
+    let hours: f64 = (seconds/3600.0).floor();
+    let mins: f64 = ((seconds - hours*3600.0)/60.0).floor();
+    let secs: f64 = seconds - mins*60.0;
+    format!("{:02.0}:{:02.0}:{:02.0}", hours, mins, secs)
 
-impl Time {
-    pub fn new(seconds: f64) -> Time {
-        Time { seconds: seconds}
-    }
-
-    pub fn get_time(self) -> String {
-        let hours: f64 = (self.seconds/3600.0).floor();
-        let mins: f64 = ((self.seconds - hours*3600.0)/60.0).floor();
-        let secs: f64 = self.seconds - mins*60.0;
-        format!("{:02.0}:{:02.0}:{:02.0}", hours, mins, secs)
-
-    }
 }
 
 fn update_pixel(x: f64, y: f64, width: f64, height: f64, samples: usize, scene: &Scene) -> Vec3d {
@@ -430,14 +411,14 @@ fn print_estimate(width: usize, height: usize, samples: usize) {
     println!("width: {}, height: {}, samples: {}", width, height, samples);
 
     let time_per_spp: f64 = 3.659458e-6;
-    let est_time: Time = Time::new(4.0*time_per_spp*(samples*width*height) as f64);
+    let est_time: f64 = 4.0*time_per_spp*(samples*width*height) as f64;
 
-    println!("Estimated time [ DEBUG ]: {}", est_time.get_time());
+    println!("Estimated time [ DEBUG ]: {}", format_time(est_time));
 
     let time_per_spp: f64 = 0.35e-6;
-    let est_time: Time = Time::new(4.0*time_per_spp*(samples*width*height) as f64);
+    let est_time: f64 = 4.0*time_per_spp*(samples*width*height) as f64;
 
-    println!("Estimated time [RELEASE]: {}", est_time.get_time());
+    println!("Estimated time [RELEASE]: {}", format_time(est_time));
 }
 
 
@@ -473,7 +454,8 @@ fn main() {
     let image = to_image(&screen);
 
     let time_taken = time::precise_time_s() - time_start;
-    println!("Finished rendering. Time taken: {}", Time::new(time_taken).get_time());
+
+    println!("Finished rendering. Time taken: {}", format_time(time_taken));
     println!("DEBUG time_per_spp*1e6: {}", (time_taken as f64/(width*height*4*samples) as f64)*1e6);
 
     let image_name = format!("{}_{}_{}_{}.png", scene.name, width, height, samples*4);
