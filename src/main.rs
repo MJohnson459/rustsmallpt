@@ -1,5 +1,8 @@
 #![cfg_attr(feature = "unstable", feature(test))]
 
+#[macro_use]
+extern crate serde_derive;
+
 extern crate docopt;
 extern crate image;
 extern crate rand;
@@ -11,7 +14,6 @@ use image::ImageBuffer;
 use rand::Rng;
 use rand::ThreadRng;
 use rayon::prelude::*;
-use std::env;
 use std::f64::consts::PI;
 use std::path::Path;
 
@@ -21,9 +23,30 @@ use vector_3d::Vec3d;
 
 // Write the Docopt usage string.
 static USAGE: &'static str = "
+Rust (not-so-)small Path Tracer
+
 Usage:
-    smallpt <width> <height> <samples>
+    smallpt <width> <height> <samples> [--scene SCENE]
+    smallpt (--help | --version)
+
+Options:
+    -h --help       Show this screen
+    --scene SCENE   The scene to render
+                    Valid values: New1, New2
 ";
+
+#[derive(Debug, Deserialize)]
+enum AvailableScenes {New1, New2}
+
+#[derive(Debug, Deserialize)]
+struct Args {
+    arg_width: usize,
+    arg_height: usize,
+    arg_samples: usize,
+    flag_scene: Option<AvailableScenes>,
+    flag_help: bool,
+    flag_version: bool,
+}
 
 pub fn float_eq(a: f64, b:f64) -> bool {
     (a - b).abs() < 0.0001
@@ -93,11 +116,12 @@ impl Sphere {
 
 pub fn clamp(x: f64) -> f64 {
     if x < 0.0 {
-        return 0.0;
-    } else     if x > 1.0 {
-        return 1.0;
+        0.0
+    } else if x > 1.0 {
+        1.0
+    } else {
+        x
     }
-    x
 }
 
 pub fn to_int(x: f64) -> i32 {
@@ -120,17 +144,18 @@ impl Camera {
         let cx: Vec3d = Vec3d{x:(width as f64)*fov/(height as f64),y:0.0,z:0.0}; // x direction increment
         let cy: Vec3d = (cx % ray.direction).normalise()*fov;                    // y direction increment
 
-        return Camera {
+        Camera {
             ray: ray,
             cx: cx,
-            cy: cy
-        };
+            cy: cy,
+        }
     }
 }
 
 pub struct Scene {
+    pub cam: Camera,
+    pub name: String,
     pub spheres: Vec<Sphere>,
-    pub cam: Camera
 }
 
 impl Scene {
@@ -147,6 +172,7 @@ impl Scene {
         spheres.push(Sphere {radius:600.0, position: Vec3d{x:50.0,y:681.6-0.27,z:81.6}, emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // light
 
         Scene {
+            name: String::from("New1"),
             spheres: spheres,
             cam: Camera::new(width, height, 0.5135)
         }
@@ -166,6 +192,7 @@ impl Scene {
         spheres.push(Sphere {radius:600.0, position: Vec3d{x:50.0,y:681.6-0.27,z:81.6}, emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // light
         //spheres.push(Sphere {radius:1.5, position: Vec3d{x:50.0,y:81.6-16.5,z:81.6}, emission: Vec3d{x:4.0,y:4.0,z:4.0}*100.0, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // light
         Scene {
+            name: String::from("New2"),
             spheres: spheres,
             cam: Camera::new(width, height, 0.5135)
         }
@@ -261,37 +288,6 @@ impl Scene {
 
 
                 let e: Vec3d = Vec3d::zeros();
-/*
-                for i in 0..self.spheres.len() {
-                    let sphere = &self.spheres[i];
-                    if sphere.emission.x <= 0.0 &&
-                        sphere.emission.y <= 0.0 &&
-                        sphere.emission.z <= 0.0 { continue; };
-
-                    let sw: Vec3d = sphere.position - intersect_point;
-                    let su: Vec3d;
-                    if sw.x.abs() > 0.1 {
-                        su = (Vec3d::new(0.0,1.0,0.0)%sw).normalise();
-                    } else {
-                        su = (Vec3d::new(1.0,0.0,0.0)%sw).normalise();
-                    }
-                    let sv: Vec3d = sw%su;
-
-                    let r = 40.0; //sphere.radius;
-
-                    let cos_a_max: f64 = (1.0-r*r/(intersect_point-sphere.position).dot(&(intersect_point-sphere.position))).sqrt();
-                    let eps1: f64 = rng.next_f64();
-                    let eps2: f64 = rng.next_f64();
-                    let cos_a = 1.0-eps1+eps1*cos_a_max;
-                    let sin_a = (1.0-cos_a*cos_a).sqrt();
-                    let phi = 2.0*PI*eps2;
-                    let l: Vec3d = (su*phi.cos()*sin_a + sv*phi.sin()*sin_a + sw*cos_a).normalise();
-                    let (intersects, _, id) = self.intersect(&Ray{origin: intersect_point, direction: l});
-                    if intersects && id == i {
-                        let omega: f64 = 2.0*PI*(1.0-cos_a_max);
-                        e = e + f.mult(sphere.emission*l.dot(&light_normal)*omega)*FRAC_1_PI;
-                    }
-                }*/
 
                 let fmu = f.mult(self.radiance(&Ray{origin: intersect_point, direction: random_direction}, depth, rng, 1.0));
                 return obj.emission*(emission as f64) + e + fmu;
@@ -421,31 +417,16 @@ fn update_pixel(x: f64, y: f64, width: f64, height: f64, samples: usize, scene: 
 }
 
 pub fn single_sample(width: usize, height: usize, samples: usize, scene: &Scene) -> Vec<Vec<Vec3d>> {
-//    let img = ImageBuffer::new(width, height);
-    (0..height).into_par_iter().map(|y| {
+    // let img = RgbImage::new(width as u32, height as u32);
+    (0..height).map(|y| {
+        print!("Rendering ({} spp) {:.4}%...\r", samples * 4, 100.0 * y as f64 / height as f64);
         (0..width).into_par_iter().map(|x| {
             update_pixel(x as f64, y as f64, width as f64, height as f64, samples, &scene)
         }).collect()
     }).collect()
 }
 
-
-fn main() {
-
-    // Prints each argument on a separate line
-    for argument in env::args() {
-        println!("{}", argument);
-    }
-
-    // Parse argv and exit the program with an error message if it fails.
-    let args = Docopt::new(USAGE)
-    .and_then(|dopt| dopt.parse())
-    .unwrap_or_else(|e| e.exit());
-
-    let width: usize = args.get_str("<width>").parse().unwrap_or(1024);
-    let height: usize = args.get_str("<height>").parse().unwrap_or(768);
-    let samples: usize = args.get_str("<samples>").parse().unwrap_or(100);
-
+fn print_estimate(width: usize, height: usize, samples: usize) {
     println!("width: {}, height: {}, samples: {}", width, height, samples);
 
     let time_per_spp: f64 = 3.659458e-6;
@@ -453,29 +434,49 @@ fn main() {
 
     println!("Estimated time [ DEBUG ]: {}", est_time.get_time());
 
-    let time_per_spp: f64 = 0.432191e-6;
+    let time_per_spp: f64 = 0.35e-6;
     let est_time: Time = Time::new(4.0*time_per_spp*(samples*width*height) as f64);
 
     println!("Estimated time [RELEASE]: {}", est_time.get_time());
+}
 
-    let scene = Scene::new2(width, height);
+
+fn main() {
+    // Parse argv and exit the program with an error message if it fails.
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|dopt| dopt.deserialize())
+        .unwrap_or_else(|e| e.exit());
+
+    let width: usize = args.arg_width;
+    let height: usize = args.arg_height;
+    let samples: usize = args.arg_samples;
+
+    print_estimate(width, height, samples);
+
+    let scene: Scene;
+    match args.flag_scene {
+        Some(x) => {
+            match x {
+                AvailableScenes::New1 => scene = Scene::new(width, height),
+                AvailableScenes::New2 => scene = Scene::new2(width, height),
+            }
+        },
+        None => {
+            println!("Using default scene New2");
+            scene = Scene::new2(width, height);
+        }
+    }
+
     let time_start = time::precise_time_s();
 
     let screen = single_sample(width, height, samples, &scene);
     let image = to_image(&screen);
 
-    /*while left > 0 {
-        println!("Rendering ({} spp) {:.4}%...\r", samples * 4, 100.0 * (height - left) as f64 / height as f64);
-        let (y, line) = rx.recv().unwrap();
-        screen[y] = line;
-        left -= 1;
-    }*/
-
     let time_taken = time::precise_time_s() - time_start;
     println!("Finished rendering. Time taken: {}", Time::new(time_taken).get_time());
-    println!("DEBUG time_per_spp: {}", (time_taken as f64/(width*height*4*samples) as f64)*1e6);
+    println!("DEBUG time_per_spp*1e6: {}", (time_taken as f64/(width*height*4*samples) as f64)*1e6);
 
-    let image_name = format!("image_{}_{}_{}.png", width, height, samples*4);
+    let image_name = format!("{}_{}_{}_{}.png", scene.name, width, height, samples*4);
     image.save(&Path::new(&image_name)).unwrap();
 }
 
@@ -484,7 +485,9 @@ pub fn to_image(screen: &Vec<Vec<Vec3d>>) -> ImageBuffer<image::Rgb<u8>, Vec<u8>
     let width = screen[0].len();
 
     ImageBuffer::from_fn(width as u32, height as u32, |x, y| {
-        image::Rgb([to_u8(screen[y as usize][x as usize].x), to_u8(screen[y as usize][x as usize].y), to_u8(screen[y as usize][x as usize].z)])
+        let w = x as usize;
+        let h = height - 1 - y as usize;
+        image::Rgb([to_u8(screen[h][w].x), to_u8(screen[h][w].y), to_u8(screen[h][w].z)])
     })
 }
 
@@ -502,28 +505,6 @@ mod tests {
         assert_eq!(result.len(), height);
         assert_eq!(result[0].len(), width);
     }
-
-/*
-    #[test]
-    fn test_intersection() {
-        let sphere = Sphere {radius:1e5, position: Vec3d{x:1e5+1.0,y:40.8,z:81.6}, emission: Vec3d{x:0.0,y:0.0,z:0.0}, color: Vec3d{x:0.75,y:0.25,z:0.25}, reflection: ReflectType::DIFF};
-        let ray = Ray { origin: Vec3d { x: 14.234, y: 46.039, z: 14.234 }, direction: Vec3d { x: -0.702, y: -0.117, z: -0.702 } };
-
-        //assert_eq!(sphere.intersect(&ray), 18.85);
-    }
-
-    #[test]
-    fn test_light() {
-        let scene = Scene::new();
-        let ray = Ray { origin: Vec3d { x: 50.0, y: 50.0, z: 81.6 }, direction: Vec3d { x: -0.0, y: 1.0, z: 0.0 } }; // aim directly at light
-        //spheres.push(Sphere {radius:600.0, position: Vec3d{x:50.0,y:681.6-0.27,z:81.6}, emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d{x:0.0,y:0.0,z:0.0}, reflection: ReflectType::DIFF}); // light
-
-        let (intersected, dist, id) = scene.intersect(&ray);
-        assert!(float_eq(dist, 31.33));
-
-        let result = scene.radiance(&ray, 0, 1);
-        assert!(result != Vec3d::zeros());
-    }*/
 }
 
 #[cfg(all(feature = "unstable", test))]

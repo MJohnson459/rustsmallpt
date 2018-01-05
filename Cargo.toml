@@ -14,4 +14,6 @@ docopt = "*"
 image = "*"
 time = "*"
 rayon = "*"
+serde = "1.0.27"
+serde_derive = "1.0.27"
 
