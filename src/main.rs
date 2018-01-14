@@ -199,49 +199,41 @@ impl Scene {
     }
 
     pub fn intersect(&self, ray: &Ray) -> (bool, f64, usize) {
-        let n = self.spheres.len();
-        let mut d: f64;
-        let mut t: f64 = 1e20;
-        let mut id: usize = 0;
         let inf = 1e20;
+        let mut closest_distance: f64 = inf;
+        let mut id: usize = 0;
 
-        for i in (0..n).rev() {
-            //println!("i: {}",i);
-            d = self.spheres[i].intersect(ray);
-            if d != 0.0 && d < t {
-                //println!("ray intersected sphere {}: {:?}", i, ray);
-                t = d;
+        for i in (0..self.spheres.len()).rev() {
+            let distance = self.spheres[i].intersect(ray);
+            if distance != 0.0 && distance < closest_distance {
+                closest_distance = distance;
                 id = i;
             }
         }
-        //println!("intersects - t: {}, inf: {}", t, inf);
-        (t < inf, t, id)
+        (closest_distance < inf, closest_distance, id)
     }
 
     pub fn radiance(&self, ray: &Ray, mut depth: i32, rng: &mut ThreadRng, emission: f64) -> Vec3d {
-
-        //println!("radiance - depth: {},  ray: {:?}", depth, ray);
-        let (intersects, t, id) = self.intersect(ray);
+        let (intersects, closest_intersect_distance, id) = self.intersect(ray);
         if !intersects {  // if miss, return black
-            //println!("No Intersect!");
             return Vec3d{x:0.0, y:0.0, z:0.0};
         }
 
-        let obj: Sphere = self.spheres[id].clone();  // the hit object
+        let obj: &Sphere = &self.spheres[id];  // the hit object
 
-        let intersect_point: Vec3d = ray.origin + ray.direction*t; // point on sphere where intersects
+        let intersect_point: Vec3d = ray.origin + ray.direction * closest_intersect_distance; // point on sphere where intersects
         let surface_normal: Vec3d = (&intersect_point - &obj.position).normalise(); // surface light_normal of intersection point
         let light_normal: Vec3d; // corrected light_normal (ie internal or external intersection)
         if surface_normal.dot(&ray.direction) < 0.0 { // dot product negative if ray is internal
             light_normal = surface_normal;
         } else {
-            light_normal = surface_normal*-1.0;
+            light_normal = surface_normal * -1.0;
         }
 
         let mut f: Vec3d = obj.color.clone();
 
         let p: f64; // brightest colour
-        if f.x > f.y && f.x>f.z {
+        if f.x > f.y && f.x > f.z {
             p = f.x;
         } else if f.y > f.z {
             p = f.y;
@@ -252,31 +244,31 @@ impl Scene {
         depth = depth + 1;
         if depth > 5 || p == 0.0 {
             if rng.next_f64() < p {
-                f = f*(1.0/p); // normalise colour [0,1]
+                f = f * (1.0 / p); // normalise colour [0,1]
             } else {
                 // This might be at the wrong if statement
-                return obj.emission*(emission as f64);
+                return obj.emission * (emission as f64);
             }
         }
 
         match obj.reflection {
             ReflectType::DIFF => {
-                let random_angle: f64 = 2.0*PI*rng.next_f64();
+                let random_angle: f64 = 2.0 * PI * rng.next_f64();
                 let random: f64 = rng.next_f64();
                 let r2s = random.sqrt();
 
                 let w: Vec3d = light_normal.clone();
                 let u: Vec3d;
                 if w.x.abs() > 0.1 {
-                    u = (Vec3d{x:0.0, y:1.0,z:0.0}.cross(w)).normalise();
+                    u = (Vec3d{x:0.0, y:1.0, z:0.0}.cross(w)).normalise();
                 } else {
-                    u = (Vec3d{x:1.0, y:0.0,z:0.0}.cross(w)).normalise();
+                    u = (Vec3d{x:1.0, y:0.0, z:0.0}.cross(w)).normalise();
                 }
                 assert!((u.length() - 1.0).abs() < 0.001);
 
                 let v: Vec3d = w.cross(u);
 
-                let random_direction: Vec3d = (u*random_angle.cos()*r2s + v*random_angle.sin()*r2s + w*(1.0-random).sqrt()).normalise();
+                let random_direction: Vec3d = (u * random_angle.cos() * r2s + v * random_angle.sin() * r2s + w * (1.0 - random).sqrt()).normalise();
                 assert!((random_direction.length() - 1.0).abs() < 0.001);
 
 
