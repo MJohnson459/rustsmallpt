@@ -197,38 +197,39 @@ impl Scene {
             cam: Camera::new(width, height, 0.5135)
         }
     }
-}
 
-pub struct Intersect {
-    distance: f64,
-    sphere: Sphere,
-}
+    pub fn intersect(&self, ray: &Ray) -> (bool, f64, usize) {
+        let n = self.spheres.len();
+        let mut d: f64;
+        let mut t: f64 = 1e20;
+        let mut id: usize = 0;
+        let inf = 1e20;
 
-impl Scene {
-    pub fn intersect(&self, ray: &Ray) -> Option<Intersect> {
-        self.spheres.iter().fold(None, |closest_intersect: Option<Intersect>, &sphere| {
-            let distance = sphere.intersect(ray);
-
-            if distance != 0.0 && (closest_intersect.is_none() || distance < closest_intersect.as_ref().unwrap().distance) {
-                Some(Intersect{distance: distance, sphere: sphere})
-            } else {
-                closest_intersect
+        for i in (0..n).rev() {
+            //println!("i: {}",i);
+            d = self.spheres[i].intersect(ray);
+            if d != 0.0 && d < t {
+                //println!("ray intersected sphere {}: {:?}", i, ray);
+                t = d;
+                id = i;
             }
-        })
+        }
+        //println!("intersects - t: {}, inf: {}", t, inf);
+        (t < inf, t, id)
     }
 
     pub fn radiance(&self, ray: &Ray, mut depth: i32, rng: &mut ThreadRng, emission: f64) -> Vec3d {
 
-        let possible_intersect = self.intersect(ray);
-        if possible_intersect.is_none() {  // if miss, return black
+        //println!("radiance - depth: {},  ray: {:?}", depth, ray);
+        let (intersects, t, id) = self.intersect(ray);
+        if !intersects {  // if miss, return black
+            //println!("No Intersect!");
             return Vec3d{x:0.0, y:0.0, z:0.0};
         }
 
-        let intersect = possible_intersect.unwrap();
+        let obj: Sphere = self.spheres[id].clone();  // the hit object
 
-        let obj: Sphere = intersect.sphere;  // the hit object
-
-        let intersect_point: Vec3d = ray.origin + ray.direction * intersect.distance; // point on sphere where intersects
+        let intersect_point: Vec3d = ray.origin + ray.direction*t; // point on sphere where intersects
         let surface_normal: Vec3d = (&intersect_point - &obj.position).normalise(); // surface light_normal of intersection point
         let light_normal: Vec3d; // corrected light_normal (ie internal or external intersection)
         if surface_normal.dot(&ray.direction) < 0.0 { // dot product negative if ray is internal
