@@ -79,27 +79,21 @@ pub struct Sphere {
 }
 
 impl Sphere {
+
+    // return distance 0.0 if nohit
     fn intersect(&self, ray: &Ray) -> f64 {
-        let op: Vec3d = self.position - ray.origin;
-        let eps: f64 = 1e-4;
-        let b: f64 = op.dot(&ray.direction);
-        let mut det: f64 = b*b - op.dot(&op) + self.radius*self.radius;
-        if det < 0.0 {
-            //println!("det < 0.0 : {}", det);
+        // Solve t^2*d.d + 2*t*(o-p).d + (o-p).(o-p)-R^2 = 0
+        let op: Vec3d = self.position - ray.origin; // p is the sphere center (C)
+        let eps: f64 = 1e-4;                        // eps is a small fudge factor
+        let b: f64 = op.dot(&ray.direction);        // 1/2 b from quadratic eq. setup
+        let mut det: f64 = b*b - op.dot(&op) + self.radius*self.radius; //(b^2-4ac)/4: a=1 because ray normalized
+        if det < 0.0 {  // ray missed sphere
             return 0.0
         } else {
-            //println!("det >= 0.0 : {}", det);
             det = det.sqrt();
         }
 
-        //println!("\nself: {:?}",self);
-        //println!("ray: {:?}",ray);
-        //println!("op: {:?}",op);
-        //println!("eps: {:?}",eps);
-        //println!("b: {:?}",b);
-        //println!("det: {:?}",det);
-
-
+        // return smaller positive t
         let t1 = b - det;
         let t2 = b + det;
         if t1 > eps {
@@ -140,6 +134,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(width: usize, height: usize, fov: f64) -> Camera {
+
         let ray: Ray = Ray{origin: Vec3d{x:50.0,y:50.0,z:295.6}, direction: Vec3d{x:0.0,y:-0.042612, z:-1.0}.normalise()};
         let cx: Vec3d = Vec3d{x:(width as f64)*fov/(height as f64),y:0.0,z:0.0}; // x direction increment
         let cy: Vec3d = (cx % ray.direction).normalise()*fov;                    // y direction increment
@@ -232,6 +227,8 @@ impl Scene {
 
         let mut f: Vec3d = obj.color.clone();
 
+        // Russian Roulette
+        // Use maximum component (r,g,b) of the surface color
         let p: f64; // brightest colour
         if f.x > f.y && f.x > f.z {
             p = f.x;
@@ -241,6 +238,7 @@ impl Scene {
             p = f.z;
         }
 
+        // Don't do Russian Roulette until after depth 5
         depth = depth + 1;
         if depth > 5 || p == 0.0 {
             if rng.next_f64() < p {
@@ -364,6 +362,8 @@ fn update_pixel(x: f64, y: f64, width: f64, height: f64, samples: usize, scene: 
                 let dx: f64;
                 let dy: f64;
 
+                // Tent filter
+                // rand_x and rand_y determine location within pixel
                 if rand_x < 1.0 {
                     dx = rand_x.sqrt() - 1.0;
                 } else {
