@@ -401,6 +401,7 @@ pub fn single_sample(width: usize, height: usize, samples: usize, scene: &Scene)
 
 fn print_estimate(width: usize, height: usize, samples: usize) {
     println!("width: {}, height: {}, samples: {}", width, height, samples);
+    println!("Number of threads: {}", rayon::current_num_threads());
 
     let time_per_spp: f64 = 3.659458e-6;
     let est_time: f64 = 4.0*time_per_spp*(samples*width*height) as f64;
