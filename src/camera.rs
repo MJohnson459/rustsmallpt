@@ -39,7 +39,7 @@ impl Camera {
         to_image(&screen)
     }
 
-    fn update_pixel(&self, x: f64, y: f64, width: f64, height: f64, samples: usize, scene: &Scene) -> Vec3d {
+    fn update_pixel_tent(&self, x: f64, y: f64, width: f64, height: f64, samples: usize, scene: &Scene) -> Vec3d {
         let mut rng = rand::thread_rng();
         let mut sum = Vec3d{x:0.0,y:0.0,z:0.0};
         for sample_y in 0..2 {
@@ -73,8 +73,19 @@ impl Camera {
                 }
                 let v: Vec3d = Vec3d{x: clamp(r.x), y: clamp(r.y), z: clamp(r.z)};
                 //println!("v.x: {}, v.y: {}, v.z: {}", v.x, v.y, v.z);
-                sum = sum + v*0.25;
+                sum += v*0.25;
             }
+        }
+        return sum;
+    }
+
+    fn update_pixel(&self, x: f64, y: f64, width: f64, height: f64, samples: usize, scene: &Scene) -> Vec3d {
+        let mut rng = rand::thread_rng();
+        let mut sum = Vec3d{x:0.0,y:0.0,z:0.0};
+        for _ in 0..samples {
+            let mut d: Vec3d = self.cx * (x / width - 0.5) + self.cy * (y / height - 0.5) + self.ray.direction;
+            let rad: Vec3d = radiance(&scene, &Ray{origin: self.ray.origin + d*140.0, direction: d.normalise()}, 0, &mut rng, 1.0);
+            sum += rad * (1.0 / samples as f64);
         }
         return sum;
     }
