@@ -93,16 +93,17 @@ fn main() {
 
     let time_start = time::precise_time_s();
 
+
+    let image_name = format!("{}_{}_{}_{}.png", scene.name, width, height, samples*4);
+    let path = Path::new(&image_name);
+
     let camera = Camera::new(width, height, 0.5135);
-    let image = camera.render_scene(&scene, width, height, samples);
+    camera.render_scene(&scene, width, height, samples, path);
 
     let time_taken = time::precise_time_s() - time_start;
 
     println!("Finished rendering. Time taken: {}", format_time(time_taken));
     println!("time_per_spp*1e6: {}", (time_taken as f64/(width*height*4*samples) as f64)*1e6);
     println!("samples per second: {}", (width*height*4*samples)/time_taken as usize);
-
-    let image_name = format!("{}_{}_{}_{}.png", scene.name, width, height, samples*4);
-    image.save(&Path::new(&image_name)).unwrap();
 }
 

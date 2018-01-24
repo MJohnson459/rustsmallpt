@@ -7,6 +7,7 @@ extern crate rayon;
 use image::ImageBuffer;
 use rand::Rng;
 use rayon::prelude::*;
+use std::path::Path;
 
 use ray::Ray;
 use ray::radiance;
@@ -34,10 +35,16 @@ impl Camera {
         }
     }
 
-    pub fn render_scene(&self, scene: &Scene, width: usize, height: usize, samples: usize) -> ImageBuffer<image::Rgb<u8>, Vec<u8>> {
+    pub fn render_scene(&self, scene: &Scene, width: usize, height: usize, samples: usize, path: &Path) {
         let screen = self.single_sample(width, height, samples, &scene);
-        to_image(&screen)
+        let image = to_image(width, height, &screen);
+        image.save(&path).expect("Unable to save image at path");
     }
+
+//    pub fn render_scene(&self, scene: &Scene, width: usize, height: usize, samples: usize) -> ImageBuffer<image::Rgb<u8>, Vec<u8>> {
+//        let screen = self.single_sample(width, height, samples, &scene);
+//        to_image(width, height, &screen)
+//    }
 
     fn update_pixel_tent(&self, x: f64, y: f64, width: f64, height: f64, samples: usize, scene: &Scene) -> Vec3d {
         let mut rng = rand::thread_rng();
@@ -90,13 +97,14 @@ impl Camera {
         return sum;
     }
 
-    fn single_sample(&self, width: usize, height: usize, samples: usize, scene: &Scene) -> Vec<Vec<Vec3d>> {
+    fn single_sample(&self, width: usize, height: usize, samples: usize, scene: &Scene) -> Vec<Vec3d> {
         // let img = RgbImage::new(width as u32, height as u32);
-        (0..height).map(|y| {
-            print!("Rendering ({} spp) {:.4}%...\r", samples * 4, 100.0 * y as f64 / height as f64);
-            (0..width).into_par_iter().map(|x| {
-                self.update_pixel(x as f64, y as f64, width as f64, height as f64, samples, &scene)
-            }).collect()
+        let pixels = height * width;
+        // print!("Rendering ({} spp) {:.4}%...\r", samples * 4, 100.0 * y as f64 / height as f64);
+        (0..pixels).into_par_iter().map(|i| {
+            let x = i % width;
+            let y = i / width;
+            self.update_pixel(x as f64, y as f64, width as f64, height as f64, samples, &scene)
         }).collect()
     }
 
@@ -104,14 +112,12 @@ impl Camera {
 
 
 
-fn to_image(screen: &Vec<Vec<Vec3d>>) -> ImageBuffer<image::Rgb<u8>, Vec<u8>> {
-    let height = screen.len();
-    let width = screen[0].len();
+fn to_image(width: usize, height: usize, screen: &Vec<Vec3d>) -> ImageBuffer<image::Rgb<u8>, Vec<u8>> {
+    assert!(height * width == screen.len());
 
     ImageBuffer::from_fn(width as u32, height as u32, |x, y| {
-        let w = x as usize;
-        let h = height - 1 - y as usize;
-        image::Rgb([to_u8(screen[h][w].x), to_u8(screen[h][w].y), to_u8(screen[h][w].z)])
+        let i: usize = x as usize + (height - 1 - y as usize) * width;
+        image::Rgb([to_u8(screen[i].x), to_u8(screen[i].y), to_u8(screen[i].z)])
     })
 }
 
