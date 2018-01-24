@@ -4,7 +4,7 @@ use std::ops::{Add,Sub,Mul,Rem,AddAssign};
 
 
 // ------- VEC ------------
-#[derive(Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug)]
 pub struct Vec3d {
     pub x: f64,
     pub y: f64,

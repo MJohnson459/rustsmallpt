@@ -54,12 +54,12 @@ fn print_estimate(width: usize, height: usize, samples: usize) {
     println!("Number of threads: {}", rayon::current_num_threads());
 
     let time_per_spp: f64 = 3.659458e-6;
-    let est_time: f64 = 4.0*time_per_spp*(samples*width*height) as f64;
+    let est_time: f64 = time_per_spp*(samples*width*height) as f64;
 
     println!("Estimated time [ DEBUG ]: {}", format_time(est_time));
 
     let time_per_spp: f64 = 0.35e-6;
-    let est_time: f64 = 4.0*time_per_spp*(samples*width*height) as f64;
+    let est_time: f64 = time_per_spp*(samples*width*height) as f64;
 
     println!("Estimated time [RELEASE]: {}", format_time(est_time));
 }
@@ -94,7 +94,7 @@ fn main() {
     let time_start = time::precise_time_s();
 
 
-    let image_name = format!("{}_{}_{}_{}.png", scene.name, width, height, samples*4);
+    let image_name = format!("{}_{}_{}_{}.png", scene.name, width, height, samples);
     let path = Path::new(&image_name);
 
     let camera = Camera::new(width, height, 0.5135);
@@ -103,7 +103,7 @@ fn main() {
     let time_taken = time::precise_time_s() - time_start;
 
     println!("Finished rendering. Time taken: {}", format_time(time_taken));
-    println!("time_per_spp*1e6: {}", (time_taken as f64/(width*height*4*samples) as f64)*1e6);
-    println!("samples per second: {}", (width*height*4*samples)/time_taken as usize);
+    println!("time_per_spp*1e6: {}", (time_taken as f64/(width*height*samples) as f64)*1e6);
+    println!("samples per second: {}", (width*height*samples)/time_taken as usize);
 }
 

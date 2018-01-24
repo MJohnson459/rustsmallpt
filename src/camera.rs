@@ -16,9 +16,11 @@ use utility::*;
 use vector_3d::Vec3d;
 
 pub struct Camera {
+    width: usize,
+    height: usize,
     ray: Ray,
     cx: Vec3d,
-    cy: Vec3d
+    cy: Vec3d,
 }
 
 impl Camera {
@@ -29,6 +31,8 @@ impl Camera {
         let cy: Vec3d = (cx % ray.direction).normalise()*fov;                    // y direction increment
 
         Camera {
+            width: width,
+            height: height,
             ray: ray,
             cx: cx,
             cy: cy,
