@@ -38,7 +38,7 @@ impl Camera {
         }
     }
 
-    fn update_pixel(&self, prev_value: &Vec3d, x: f64, y: f64, width: f64, height: f64, weight: f64, scene: &Scene) -> Vec3d {
+    fn update_pixel(&self, x: f64, y: f64, width: f64, height: f64, weight: f64, scene: &Scene) -> Vec3d {
         let mut rng = rand::thread_rng();
         let tent_filter = true;
         let camera_ray_offset = 140.0;
@@ -62,32 +62,29 @@ impl Camera {
             new_value = radiance(&scene, &Ray{origin: self.ray.origin + d * camera_ray_offset, direction: d.normalise()}, 0, &mut rng, 1.0);
         }
 
-
-        *prev_value + (new_value * weight)
+        new_value * weight
     }
 
-    fn single_sample(&self, prev_screen: &Vec<Vec3d> , width: usize, height: usize, weight: f64, scene: &Scene) -> Vec<Vec3d> {
-        let pixels = height * width;
-        (0..pixels).into_par_iter().map(|i| {
+    fn single_sample(&self, prev_screen: &mut Vec<Vec3d> , width: usize, height: usize, weight: f64, scene: &Scene) {
+        prev_screen.par_iter_mut().enumerate().for_each(|(i, value)| {
             let x = i % width;
             let y = i / width;
-            self.update_pixel(&prev_screen[i], x as f64, y as f64, width as f64, height as f64, weight, &scene)
-        }).collect()
+            *value = *value + self.update_pixel(x as f64, y as f64, width as f64, height as f64, weight, &scene);
+        });
     }
 
     pub fn render_scene(&self, scene: &Scene, width: usize, height: usize, samples: usize, path: &Path) {
         let save_per_sample = true;
         let weight = 1.0 / samples as f64;
-        let mut prev_screen = vec![Vec3d::default(); width * height];
+        let mut screen = vec![Vec3d::default(); width * height];
         for sample in 0..samples {
             print!("Rendering {:.4}%\r", 100 * sample / samples);
             io::stdout().flush().unwrap();
-            let new_screen = self.single_sample(&prev_screen, width, height, weight, &scene);
+            self.single_sample(&mut screen, width, height, weight, &scene);
             if save_per_sample || sample == samples - 1 {
-                let image = to_image(width, height, &new_screen);
+                let image = to_image(width, height, &screen);
                 image.save(&path).expect("Unable to save image at path");
             }
-            prev_screen = new_screen;
         }
     }
 
