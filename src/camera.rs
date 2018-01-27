@@ -4,6 +4,7 @@ extern crate image;
 extern crate rand;
 extern crate rayon;
 
+use std::io::{self, Write};
 use image::ImageBuffer;
 use rand::Rng;
 use rayon::prelude::*;
@@ -39,12 +40,6 @@ impl Camera {
             cx: cx,
             cy: cy,
         }
-    }
-
-    pub fn render_scene(&self, scene: &Scene, width: usize, height: usize, samples: usize, path: &Path) {
-        let screen = self.single_sample(width, height, samples, &scene);
-        let image = to_image(width, height, &screen);
-        image.save(&path).expect("Unable to save image at path");
     }
 
 //    pub fn render_scene(&self, scene: &Scene, width: usize, height: usize, samples: usize) -> ImageBuffer<image::Rgb<u8>, Vec<u8>> {
@@ -92,26 +87,37 @@ impl Camera {
         return sum;
     }
 
-    fn update_pixel(&self, x: f64, y: f64, width: f64, height: f64, samples: usize, scene: &Scene) -> Vec3d {
+    fn update_pixel(&self, prev_value: &Vec3d, x: f64, y: f64, width: f64, height: f64, weight: f64, scene: &Scene) -> Vec3d {
         let mut rng = rand::thread_rng();
-        let mut sum = Vec3d{x:0.0,y:0.0,z:0.0};
-        for _ in 0..samples {
-            let mut d: Vec3d = self.cx * (x / width - 0.5) + self.cy * (y / height - 0.5) + self.ray.direction;
-            let rad: Vec3d = radiance(&scene, &Ray{origin: self.ray.origin + d*140.0, direction: d.normalise()}, 0, &mut rng, 1.0);
-            sum += rad * (1.0 / samples as f64);
-        }
-        return sum;
+        let mut d: Vec3d = self.cx * (x / width - 0.5) + self.cy * (y / height - 0.5) + self.ray.direction;
+        let rad: Vec3d = radiance(&scene, &Ray{origin: self.ray.origin + d*140.0, direction: d.normalise()}, 0, &mut rng, 1.0);
+
+        *prev_value + (rad * weight)
     }
 
-    fn single_sample(&self, width: usize, height: usize, samples: usize, scene: &Scene) -> Vec<Vec3d> {
-        // let img = RgbImage::new(width as u32, height as u32);
+    fn single_sample(&self, prev_screen: &Vec<Vec3d> , width: usize, height: usize, weight: f64, scene: &Scene) -> Vec<Vec3d> {
         let pixels = height * width;
-        // print!("Rendering ({} spp) {:.4}%...\r", samples * 4, 100.0 * y as f64 / height as f64);
         (0..pixels).into_par_iter().map(|i| {
             let x = i % width;
             let y = i / width;
-            self.update_pixel(x as f64, y as f64, width as f64, height as f64, samples, &scene)
+            self.update_pixel(&prev_screen[i], x as f64, y as f64, width as f64, height as f64, weight, &scene)
         }).collect()
+    }
+
+    pub fn render_scene(&self, scene: &Scene, width: usize, height: usize, samples: usize, path: &Path) {
+        let save_per_sample = true;
+        let weight = 1.0 / samples as f64;
+        let mut prev_screen = vec![Vec3d::default(); width * height];
+        for sample in 0..samples {
+            print!("Rendering {:.4}%\r", 100 * sample / samples);
+            io::stdout().flush().unwrap();
+            let new_screen = self.single_sample(&prev_screen, width, height, weight, &scene);
+            if save_per_sample || sample == samples - 1 {
+                let image = to_image(width, height, &new_screen);
+                image.save(&path).expect("Unable to save image at path");
+            }
+            prev_screen = new_screen;
+        }
     }
 
 }
