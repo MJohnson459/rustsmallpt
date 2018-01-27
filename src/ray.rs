@@ -3,8 +3,8 @@
 use std::f64::consts::PI;
 use rand::ThreadRng;
 use rand::Rng;
+use na::{Vector3};
 
-use vector_3d::Vec3d;
 use scene::Scene;
 use sphere::Sphere;
 use material::ReflectType;
@@ -13,28 +13,28 @@ use material::ReflectType;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Ray {
-    pub origin: Vec3d,
-    pub direction: Vec3d,
+    pub origin: Vector3<f64>,
+    pub direction: Vector3<f64>,
 }
 
-pub fn radiance(scene: &Scene, ray: &Ray, mut depth: i32, rng: &mut ThreadRng, emission: f64) -> Vec3d {
+pub fn radiance(scene: &Scene, ray: &Ray, mut depth: i32, rng: &mut ThreadRng, emission: f64) -> Vector3<f64> {
     let (intersects, closest_intersect_distance, id) = scene.intersect(ray);
     if !intersects {  // if miss, return black
-        return Vec3d{x:0.0, y:0.0, z:0.0};
+        return Vector3::<f64>::zeros();
     }
 
     let obj: &Sphere = &scene.spheres[id];  // the hit object
 
-    let intersect_point: Vec3d = ray.origin + ray.direction * closest_intersect_distance; // point on sphere where intersects
-    let surface_normal: Vec3d = (&intersect_point - &obj.position).normalise(); // surface light_normal of intersection point
-    let light_normal: Vec3d; // corrected light_normal (ie internal or external intersection)
+    let intersect_point = ray.origin + ray.direction * closest_intersect_distance; // point on sphere where intersects
+    let surface_normal = (&intersect_point - &obj.position).normalize(); // surface light_normal of intersection point
+    let light_normal: Vector3<f64>; // corrected light_normal (ie internal or external intersection)
     if surface_normal.dot(&ray.direction) < 0.0 { // dot product negative if ray is internal
         light_normal = surface_normal;
     } else {
         light_normal = surface_normal * -1.0;
     }
 
-    let mut f: Vec3d = obj.color.clone();
+    let mut f: Vector3<f64> = obj.color.clone();
 
     // Russian Roulette
     // Use maximum component (r,g,b) of the surface color
@@ -51,7 +51,7 @@ pub fn radiance(scene: &Scene, ray: &Ray, mut depth: i32, rng: &mut ThreadRng, e
     depth = depth + 1;
     if depth > 5 || p == 0.0 {
         if rng.next_f64() < p {
-            f = f * (1.0 / p); // normalise colour [0,1]
+            f = f * (1.0 / p); // normalize colour [0,1]
         } else {
             // This might be at the wrong if statement
             return obj.emission * (emission as f64);
@@ -64,30 +64,30 @@ pub fn radiance(scene: &Scene, ray: &Ray, mut depth: i32, rng: &mut ThreadRng, e
             let random: f64 = rng.next_f64();
             let r2s = random.sqrt();
 
-            let w: Vec3d = light_normal.clone();
-            let u: Vec3d;
+            let w: Vector3<f64> = light_normal.clone();
+            let u: Vector3<f64>;
             if w.x.abs() > 0.1 {
-                u = (Vec3d{x:0.0, y:1.0, z:0.0}.cross(w)).normalise();
+                u = (Vector3::<f64>::new(0.0, 1.0, 0.0).cross(&w)).normalize();
             } else {
-                u = (Vec3d{x:1.0, y:0.0, z:0.0}.cross(w)).normalise();
+                u = (Vector3::<f64>::new(1.0, 0.0, 0.0).cross(&w)).normalize();
             }
             assert!((u.length() - 1.0).abs() < 0.001);
 
-            let v: Vec3d = w.cross(u);
+            let v: Vector3<f64> = w.cross(&u);
 
-            let random_direction: Vec3d = (u * random_angle.cos() * r2s + v * random_angle.sin() * r2s + w * (1.0 - random).sqrt()).normalise();
+            let random_direction = (u * random_angle.cos() * r2s + v * random_angle.sin() * r2s + w * (1.0 - random).sqrt()).normalize();
             assert!((random_direction.length() - 1.0).abs() < 0.001);
 
 
-            let e: Vec3d = Vec3d::zeros();
+            let e = Vector3::<f64>::zeros();
 
-            let fmu = f.mult(radiance(&scene, &Ray{origin: intersect_point, direction: random_direction}, depth, rng, 1.0));
+            let fmu = f * (radiance(&scene, &Ray{origin: intersect_point, direction: random_direction}, depth, rng, 1.0));
             return obj.emission*(emission as f64) + e + fmu;
         },
         ReflectType::SPEC => {
             //println!("obj.emission SPEC, depth: {}", depth);
-            let d: Vec3d = ray.direction-(surface_normal*2.0*surface_normal.dot(&ray.direction));
-            return obj.emission + f.mult(radiance(&scene, &Ray{origin: intersect_point, direction: d}, depth, rng, 1.0));
+            let d: Vector3<f64> = ray.direction-(surface_normal*2.0*surface_normal.dot(&ray.direction));
+            return obj.emission + f * (radiance(&scene, &Ray{origin: intersect_point, direction: d}, depth, rng, 1.0));
         },
             _ => {}
 
@@ -108,15 +108,15 @@ pub fn radiance(scene: &Scene, ray: &Ray, mut depth: i32, rng: &mut ThreadRng, e
     let cos2t: f64 = 1.0 - nnt * nnt * (1.0 - ddn * ddn);
     if cos2t < 0.0 { // Total internal reflection
         //println!("obj.emission cos2t < 0.0");
-        return obj.emission + f.mult(radiance(&scene, &refl_ray, depth, rng, 1.0));
+        return obj.emission + f * (radiance(&scene, &refl_ray, depth, rng, 1.0));
     }
 
-    let tdir: Vec3d;
+    let tdir: Vector3<f64>;
 
     if into {
-        tdir = (ray.direction*nnt - surface_normal*(1.0*(ddn*nnt+cos2t.sqrt()))).normalise();
+        tdir = (ray.direction*nnt - surface_normal*(1.0*(ddn*nnt+cos2t.sqrt()))).normalize();
     } else {
-        tdir = (ray.direction*nnt - surface_normal*(-1.0*(ddn*nnt+cos2t.sqrt()))).normalise();
+        tdir = (ray.direction*nnt - surface_normal*(-1.0*(ddn*nnt+cos2t.sqrt()))).normalize();
     }
 
     let a: f64 = nt- nc;
@@ -139,11 +139,11 @@ pub fn radiance(scene: &Scene, ray: &Ray, mut depth: i32, rng: &mut ThreadRng, e
 
     if depth > 2 {
         if rng.next_f64() < p {
-            obj.emission + f.mult(radiance(&scene, &refl_ray, depth, rng, 1.0)*rp)
+            obj.emission + f * (radiance(&scene, &refl_ray, depth, rng, 1.0)*rp)
         } else {
-            obj.emission + f.mult(radiance(&scene, &Ray{origin: intersect_point, direction: tdir}, depth, rng, 1.0)*tp)
+            obj.emission + f * (radiance(&scene, &Ray{origin: intersect_point, direction: tdir}, depth, rng, 1.0)*tp)
         }
     } else {
-        obj.emission + f.mult(radiance(&scene, &refl_ray, depth, rng, 1.0)*re+radiance(&scene, &Ray{origin: intersect_point, direction: tdir}, depth, rng, 1.0)*tr)
+        obj.emission + f * (radiance(&scene, &refl_ray, depth, rng, 1.0)*re+radiance(&scene, &Ray{origin: intersect_point, direction: tdir}, depth, rng, 1.0)*tr)
     }
 }

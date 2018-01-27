@@ -7,6 +7,7 @@ extern crate time;
 extern crate image;
 extern crate rand;
 extern crate rayon;
+extern crate nalgebra as na;
 
 use docopt::Docopt;
 use std::path::Path;
@@ -17,7 +18,6 @@ mod ray;
 mod scene;
 mod sphere;
 mod utility;
-mod vector_3d;
 
 use camera::Camera;
 use scene::AvailableScenes;
