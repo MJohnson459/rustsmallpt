@@ -17,8 +17,6 @@ use utility::*;
 use vector_3d::Vec3d;
 
 pub struct Camera {
-    width: usize,
-    height: usize,
     ray: Ray,
     cx: Vec3d,
     cy: Vec3d,
@@ -34,8 +32,6 @@ impl Camera {
         let cy: Vec3d = (cx % ray.direction).normalise()*fov;                    // y direction increment
 
         Camera {
-            width: width,
-            height: height,
             ray: ray,
             cx: cx,
             cy: cy,
@@ -47,6 +43,7 @@ impl Camera {
 //        to_image(width, height, &screen)
 //    }
 
+    #[allow(dead_code)]
     fn update_pixel_tent(&self, x: f64, y: f64, width: f64, height: f64, samples: usize, scene: &Scene) -> Vec3d {
         let mut rng = rand::thread_rng();
         let mut sum = Vec3d{x:0.0,y:0.0,z:0.0};
@@ -141,11 +138,12 @@ mod tests {
     fn test_single_sample() {
         let width = 100;
         let height = 100;
-        let samples = 1;
-        let scene = Scene::new2(width, height);
-        let result = single_sample(width, height, samples, &scene);
-        assert_eq!(result.len(), height);
-        assert_eq!(result[0].len(), width);
+        let weight = 1.0;
+        let scene = Scene::new2();
+        let camera = Camera::new(width, height);
+        let prev_screen = vec!(Vec3d::default(); width * height);
+        let result = camera.single_sample(&prev_screen, width, height, weight, &scene);
+        assert_eq!(result.len(), prev_screen.len());
     }
 }
 
