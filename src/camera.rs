@@ -124,9 +124,8 @@ mod tests {
         let weight = 1.0;
         let scene = Scene::new2();
         let camera = Camera::new(width, height);
-        let prev_screen = vec!(Vec3d::default(); width * height);
-        let result = camera.single_sample(&prev_screen, width, height, weight, &scene);
-        assert_eq!(result.len(), prev_screen.len());
+        let mut prev_screen = vec!(Vec3d::default(); width * height);
+        camera.single_sample(&mut prev_screen, width, height, weight, &scene);
     }
 }
 
@@ -141,18 +140,21 @@ mod bench {
     fn bench_single_sample(b: &mut Bencher) {
         let width = 100;
         let height = 100;
-        let samples = 2;
-        let scene = Scene::new2(width, height);
-        b.iter(|| single_sample(width, height, samples, &scene));
+        let scene = Scene::new2();
+        let camera = Camera::new(width, height);
+        b.iter(|| {
+            let mut prev_screen = vec!(Vec3d::default(); width * height);
+            camera.single_sample(&mut prev_screen, width, height, 1.0, &scene)
+        });
     }
 
     #[bench]
     fn bench_update_pixel(b: &mut Bencher) {
         let width = 100;
         let height = 100;
-        let samples = 2;
-        let scene = Scene::new2(width, height);
-        b.iter(|| update_pixel(5.0, 5.0, width as f64, height as f64, samples, &scene));
+        let scene = Scene::new2();
+        let camera = Camera::new(width, height);
+        b.iter(|| camera.update_pixel(5.0, 5.0, width as f64, height as f64, 1.0, &scene));
     }
 
 }
