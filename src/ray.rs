@@ -120,18 +120,6 @@ pub fn radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng) -> Ve
 
     let obj: &Sphere = &scene.spheres[id];  // the hit object
 
-    let intersect_point = ray.origin + ray.direction * closest_intersect_distance; // point on sphere where intersects
-    let surface_normal = (&intersect_point - &obj.position).normalise(); // surface light_normal of intersection point
-
-    // corrected light_normal (ie internal or external intersection)
-    let light_normal =
-        if surface_normal.dot(&ray.direction) < 0.0 { // dot product negative if ray is internal
-            surface_normal
-        } else {
-            surface_normal * -1.0
-        };
-
-
     // Russian Roulette
     // Use maximum component (r,g,b) of the surface color
     let brightest_color = get_brightest_color(&obj.color); // brightest colour
@@ -140,6 +128,18 @@ pub fn radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng) -> Ve
     if (depth > 5 || brightest_color == 0.0) && rng.next_f64() >= brightest_color {
         return obj.emission;
     }
+
+
+    let intersect_point = ray.origin + ray.direction * closest_intersect_distance; // point on sphere where intersects
+    let surface_normal = (intersect_point - obj.position).normalise(); // surface light_normal of intersection point
+
+    // corrected light_normal (ie internal or external intersection)
+    let light_normal =
+        if surface_normal.dot(&ray.direction) < 0.0 { // dot product negative if ray is internal
+            surface_normal
+        } else {
+            surface_normal * -1.0
+        };
 
     match obj.reflection {
         ReflectType::DIFF => diff_radiance(&scene, &ray, depth, rng, &light_normal, &intersect_point, &obj),
