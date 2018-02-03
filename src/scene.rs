@@ -1,5 +1,3 @@
-#![cfg_attr(feature = "unstable", feature(test))]
-
 extern crate rand;
 
 use vector_3d::Vec3d;

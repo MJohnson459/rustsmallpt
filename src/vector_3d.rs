@@ -154,7 +154,7 @@ mod tests {
 
     #[test]
     fn test_normalise() {
-        let mut v: Vec3d = Vec3d{x: -0.0, y: 0.001017, z: -0.0};
+        let v: Vec3d = Vec3d{x: -0.0, y: 0.001017, z: -0.0};
         let w: Vec3d = Vec3d{x: 0.0, y: -0.003064, z: 0.0}.normalise();
 
         let u: Vec3d = v.normalise();

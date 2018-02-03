@@ -1,5 +1,3 @@
-#![cfg_attr(feature = "unstable", feature(test))]
-
 extern crate time;
 
 // pub fn float_eq(a: f64, b:f64) -> bool {

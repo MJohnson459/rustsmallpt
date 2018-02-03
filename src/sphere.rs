@@ -1,5 +1,3 @@
-#![cfg_attr(feature = "unstable", feature(test))]
-
 use vector_3d::Vec3d;
 use ray::Ray;
 use material::ReflectType;

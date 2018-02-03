@@ -1,5 +1,3 @@
-#![cfg_attr(feature = "unstable", feature(test))]
-
 use std::f64::consts::PI;
 use rand::ThreadRng;
 use rand::Rng;

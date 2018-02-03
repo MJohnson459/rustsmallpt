@@ -1,5 +1,3 @@
-#![cfg_attr(feature = "unstable", feature(test))]
-
 extern crate image;
 extern crate rand;
 extern crate rayon;
@@ -83,7 +81,7 @@ impl Camera {
             if save_per_sample || sample == samples - 1 {
                 let image = to_image(width, height, &screen);
                 match image.save(&path) {
-                    Ok(v) => {},
+                    Ok(_v) => {},
                     Err(e) => {println!("{}", e)},
                 }
             }
