@@ -27,7 +27,7 @@ impl Camera {
 
         let ray: Ray = Ray{origin: position, direction: Vec3d{x: 0.0, y: -0.042612, z: -1.0}.normalise()};
         let cx: Vec3d = Vec3d{x:(width as f64) * fov/(height as f64),y:0.0,z:0.0}; // x direction increment
-        let cy: Vec3d = (cx % ray.direction).normalise() * fov;                    // y direction increment
+        let cy: Vec3d = (cx.cross(ray.direction)).normalise() * fov;                    // y direction increment
 
         Camera {
             ray: ray,

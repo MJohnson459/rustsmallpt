@@ -1,6 +1,6 @@
 use std::f64;
 
-use std::ops::{Add,Sub,Mul,Rem,AddAssign};
+use std::ops::{Add,Sub,Mul,AddAssign};
 
 
 // ------- VEC ------------
@@ -114,28 +114,6 @@ impl Mul<f64> for Vec3d {
             x: self.x * other,
             y: self.y * other,
             z: self.z * other,
-        }
-    }
-}
-
-impl Rem for Vec3d {
-    type Output = Vec3d;
-    fn rem(self, other: Vec3d) -> Vec3d {
-        Vec3d {
-            x: self.y * other.z - self.z*other.y,
-            y: self.z * other.x - self.x*other.z,
-            z: self.x * other.y - self.y*other.x,
-        }
-    }
-}
-
-impl<'a,'b> Rem<&'b Vec3d> for &'a Vec3d {
-    type Output = Vec3d;
-    fn rem(self, other: &'b Vec3d) -> Vec3d {
-        Vec3d {
-            x: self.y * other.z - self.z*other.y,
-            y: self.z * other.x - self.x*other.z,
-            z: self.x * other.y - self.y*other.x,
         }
     }
 }
