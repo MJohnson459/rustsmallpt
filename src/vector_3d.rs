@@ -20,12 +20,11 @@ impl Vec3d {
         Vec3d {x: 0.0, y: 0.0, z: 0.0}
     }
 
-    pub fn normalise(&mut self) -> Vec3d {
-        let nx = self.x*self.x;
-        let ny = self.y*self.y;
-        let nz = self.z*self.z;
-        *self = *self * (1.0/(nx + ny + nz).sqrt());
-        *self
+    pub fn normalise(&self) -> Vec3d {
+        let nx = self.x * self.x;
+        let ny = self.y * self.y;
+        let nz = self.z * self.z;
+        *self * (1.0/(nx + ny + nz).sqrt())
     }
 
     pub fn dot(&self, other: &Vec3d) -> f64 {
