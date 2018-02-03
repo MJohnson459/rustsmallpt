@@ -49,14 +49,14 @@ impl Camera {
                     let y_offset = calculate_offset(sample_y as f64);
 
                     let d = self.cx * ((x + x_offset) / width - 0.5) + self.cy * ((y + y_offset) / height - 0.5) + self.ray.direction;
-                    let rad = radiance(&scene, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, 1.0);
+                    let rad = radiance(&scene, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng);
 
                     new_value += rad * 0.25; // 2x2 tent filter so weight is 0.25 each
                 }
             }
         } else {
             let d: Vec3d = self.cx * (x / width - 0.5) + self.cy * (y / height - 0.5) + self.ray.direction;
-            new_value = radiance(&scene, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, 1.0);
+            new_value = radiance(&scene, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng);
         }
 
         new_value * weight
