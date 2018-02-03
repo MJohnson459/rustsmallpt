@@ -107,6 +107,17 @@ impl<'a,'b> Mul<&'b Vec3d> for &'a Vec3d {
     }
 }
 
+impl Mul<Vec3d> for Vec3d {
+    type Output = Vec3d;
+    fn mul(self, other: Vec3d) -> Vec3d {
+        Vec3d {
+            x: self.x * other.x,
+            y: self.y * other.y,
+            z: self.z * other.z,
+        }
+    }
+}
+
 impl Mul<f64> for Vec3d {
     type Output = Vec3d;
     fn mul(self, other: f64) -> Vec3d {
