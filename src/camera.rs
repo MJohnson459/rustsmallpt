@@ -24,12 +24,12 @@ pub struct Camera {
 
 impl Camera {
     pub fn new(width: usize, height: usize) -> Camera {
-        let fov = 0.4;
-        let position = Vec3d{x: 50.0, y: 50.0, z: 330.0};
+        let fov = 0.6;
+        let position = Vec3d{x: 50.0, y: 50.0, z: 260.0};
 
         let ray: Ray = Ray{origin: position, direction: Vec3d{x: 0.0, y: -0.042612, z: -1.0}.normalise()};
-        let cx: Vec3d = Vec3d{x:(width as f64)*fov/(height as f64),y:0.0,z:0.0}; // x direction increment
-        let cy: Vec3d = (cx % ray.direction).normalise()*fov;                    // y direction increment
+        let cx: Vec3d = Vec3d{x:(width as f64) * fov/(height as f64),y:0.0,z:0.0}; // x direction increment
+        let cy: Vec3d = (cx % ray.direction).normalise() * fov;                    // y direction increment
 
         Camera {
             ray: ray,
@@ -41,7 +41,6 @@ impl Camera {
     fn update_pixel(&self, x: f64, y: f64, width: f64, height: f64, weight: f64, scene: &Scene) -> Vec3d {
         let mut rng = rand::thread_rng();
         let tent_filter = true;
-        let camera_ray_offset = 140.0;
 
         let mut new_value: Vec3d = Vec3d{x:0.0, y: 0.0, z: 0.0};
 
@@ -51,15 +50,15 @@ impl Camera {
                     let x_offset = calculate_offset(sample_x as f64);
                     let y_offset = calculate_offset(sample_y as f64);
 
-                    let d: Vec3d = self.cx * ((x + x_offset) / width - 0.5) + self.cy * ((y + y_offset) / height - 0.5) + self.ray.direction;
-                    let rad: Vec3d = radiance(&scene, &Ray{origin: self.ray.origin + d * camera_ray_offset, direction: d.normalise()}, 0, &mut rng, 1.0);
+                    let d = self.cx * ((x + x_offset) / width - 0.5) + self.cy * ((y + y_offset) / height - 0.5) + self.ray.direction;
+                    let rad = radiance(&scene, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, 1.0);
 
                     new_value += rad * 0.25; // 2x2 tent filter so weight is 0.25 each
                 }
             }
         } else {
             let d: Vec3d = self.cx * (x / width - 0.5) + self.cy * (y / height - 0.5) + self.ray.direction;
-            new_value = radiance(&scene, &Ray{origin: self.ray.origin + d * camera_ray_offset, direction: d.normalise()}, 0, &mut rng, 1.0);
+            new_value = radiance(&scene, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, 1.0);
         }
 
         new_value * weight
@@ -83,7 +82,10 @@ impl Camera {
             self.single_sample(&mut screen, width, height, weight, &scene);
             if save_per_sample || sample == samples - 1 {
                 let image = to_image(width, height, &screen);
-                image.save(&path).expect("Unable to save image at path");
+                match image.save(&path) {
+                    Ok(v) => {},
+                    Err(e) => {println!("{}", e)},
+                }
             }
         }
     }
