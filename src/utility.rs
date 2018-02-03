@@ -19,7 +19,11 @@ pub fn clamp(x: f64) -> f64 {
 // }
 
 pub fn to_u8(x: f64) -> u8 {
-    (clamp(x).powf(1.0/2.2)*255.0+0.5) as u8
+    (gamma_correct(clamp(x)) * 255.0 + 0.5) as u8
+}
+
+fn gamma_correct(x: f64) -> f64 {
+    x.powf(1.0/2.2)
 }
 
 pub fn format_time(seconds: f64) -> String {
@@ -30,3 +34,28 @@ pub fn format_time(seconds: f64) -> String {
 
 }
 
+
+#[cfg(all(feature = "unstable", test))]
+mod bench {
+    extern crate test;
+
+    use super::*;
+    use self::test::Bencher;
+
+    #[bench]
+    fn bench_to_u8(b: &mut Bencher) {
+        b.iter(|| {
+            let n = test::black_box(0.65473);
+            to_u8(n)
+        });
+    }
+
+    #[bench]
+    fn bench_gamma_correct(b: &mut Bencher) {
+        b.iter(|| {
+            let n = test::black_box(0.65473);
+            gamma_correct(n)
+        });
+    }
+
+}

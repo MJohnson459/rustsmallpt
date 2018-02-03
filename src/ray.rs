@@ -145,3 +145,34 @@ pub fn radiance(scene: &Scene, ray: &Ray, mut depth: i32, rng: &mut ThreadRng, e
         obj.emission + f.mult(radiance(&scene, &refl_ray, depth, rng, 1.0)*re+radiance(&scene, &Ray{origin: intersect_point, direction: tdir}, depth, rng, 1.0)*tr)
     }
 }
+
+#[cfg(all(feature = "unstable", test))]
+mod bench {
+    extern crate test;
+    extern crate rand;
+
+    use super::*;
+    use self::test::Bencher;
+
+    #[bench]
+    fn bench_radiance(b: &mut Bencher) {
+        let scene = Scene::new2();
+        let mut rng = rand::thread_rng();
+        let ray = Ray{origin: Vec3d{x: 50.0, y: 50.0, z: 100.0}, direction: Vec3d{x: 0.0, y: -0.042612, z: -1.0}.normalise()};
+
+        b.iter(|| {
+            radiance(&scene, &ray, 0, &mut rng, 1.0)
+        });
+    }
+
+    #[bench]
+    fn bench_radiance_black(b: &mut Bencher) {
+        let scene = Scene::new2();
+        let mut rng = rand::thread_rng();
+        let ray = Ray{origin: Vec3d{x: 50.0, y: 50.0, z: 260.0}, direction: Vec3d{x: 0.0, y: -0.042612, z: -1.0}.normalise()};
+
+        b.iter(|| {
+            radiance(&scene, &ray, 0, &mut rng, 1.0)
+        });
+    }
+}
