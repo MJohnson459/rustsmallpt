@@ -25,6 +25,32 @@ fn get_brightest_color(color: &Vec3d) -> f64 {
     }
 }
 
+fn get_random_direction(rng: &mut ThreadRng, light_normal: &Vec3d) -> Vec3d {
+    let random_angle = 2.0 * PI * rng.next_f64();
+    let random = rng.next_f64();
+    let r2s = random.sqrt();
+
+    let w = *light_normal;
+    let u =
+        if w.x.abs() > 0.1 {
+            (Vec3d{x:0.0, y:1.0, z:0.0}.cross(w)).normalise()
+        } else {
+            (Vec3d{x:1.0, y:0.0, z:0.0}.cross(w)).normalise()
+        };
+
+    let v = w.cross(u);
+
+    (u * random_angle.cos() * r2s + v * random_angle.sin() * r2s + w * (1.0 - random).sqrt()).normalise()
+}
+
+fn get_reflected_ray(ray: &Ray, surface_normal: &Vec3d, surface_point: &Vec3d) -> Ray {
+    let dir = ray.direction - (*surface_normal * 2.0 * surface_normal.dot(&ray.direction));
+    Ray {
+        origin: *surface_point,
+        direction: dir,
+    }
+}
+
 pub fn radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, emission: f64) -> Vec3d {
     let (intersects, closest_intersect_distance, id) = scene.intersect(ray);
     if !intersects {  // if miss, return black
@@ -51,92 +77,70 @@ pub fn radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, emiss
 
     // Don't do Russian Roulette until after depth 5
     if (depth > 5 || brightest_color == 0.0) && rng.next_f64() >= brightest_color {
-        return obj.emission * (emission as f64);
+        return obj.emission * emission;
     }
 
     let color = obj.color;
 
     match obj.reflection {
         ReflectType::DIFF => {
-            let random_angle = 2.0 * PI * rng.next_f64();
-            let random = rng.next_f64();
-            let r2s = random.sqrt();
-
-            let w = light_normal;
-            let u =
-                if w.x.abs() > 0.1 {
-                    (Vec3d{x:0.0, y:1.0, z:0.0}.cross(w)).normalise()
-                } else {
-                    (Vec3d{x:1.0, y:0.0, z:0.0}.cross(w)).normalise()
-                };
-
-            let v = w.cross(u);
-
-            let random_direction = (u * random_angle.cos() * r2s + v * random_angle.sin() * r2s + w * (1.0 - random).sqrt()).normalise();
-
+            let random_direction = get_random_direction(rng, &light_normal);
             let e = Vec3d::zeros();
 
             let fmu = color * radiance(&scene, &Ray{origin: intersect_point, direction: random_direction}, depth + 1, rng, 1.0);
-            return obj.emission * (emission as f64) + e + fmu;
+            return obj.emission * emission + e + fmu;
         },
         ReflectType::SPEC => {
-            //println!("obj.emission SPEC, depth: {}", depth);
-            let d: Vec3d = ray.direction-(surface_normal*2.0*surface_normal.dot(&ray.direction));
-            return obj.emission + color * radiance(&scene, &Ray{origin: intersect_point, direction: d}, depth + 1, rng, 1.0);
+            return obj.emission + color * radiance(&scene, &get_reflected_ray(&ray, &surface_normal, &intersect_point), depth + 1, rng, 1.0);
         },
-            _ => {}
+        ReflectType::REFR => {
+            let refl_ray = get_reflected_ray(&ray, &surface_normal, &intersect_point);
+            let into = surface_normal.dot(&light_normal) > 0.0;
 
-    }
+            let air: f64 = 1.0;
+            let glass: f64 = 1.5;
+            let refraction = if into { air / glass } else { glass / air };
 
-    let refl_ray = Ray{origin: intersect_point, direction: ray.direction-surface_normal*2.0*surface_normal.dot(&ray.direction)}; // Ideal dielectric REFRACTION
-    let into = surface_normal.dot(&light_normal) > 0.0;
+            let angle = ray.direction.dot(&light_normal);
+            let cos2t = 1.0 - refraction * refraction * (1.0 - angle * angle);
+            if cos2t < 0.0 {
+                // Total internal reflection so all light is reflected (internally)
+                return obj.emission + color * radiance(&scene, &refl_ray, depth + 1, rng, 1.0);
+            }
 
-    let nc: f64 = 1.0;
-    let nt: f64 = 1.5;
-    let nnt =
-        if into { // Ray from outside going in?
-            nc / nt
-        } else {
-            nt / nc
-        };
+            let refract_dir = (ray.direction * refraction - surface_normal * (if into {1.0} else {-1.0} * (angle * refraction + cos2t.sqrt()))).normalise();
 
-    let ddn =ray.direction.dot(&light_normal);
-    let cos2t = 1.0 - nnt * nnt * (1.0 - ddn * ddn);
-    if cos2t < 0.0 { // Total internal reflection
-        return obj.emission + color * radiance(&scene, &refl_ray, depth + 1, rng, 1.0);
-    }
+            // Fresnel reflectance
+            let a = glass - air;
+            let b = glass + air;
+            let normal_reflected = a * a / (b * b);
+            let c =
+                if into {
+                    1.0 + angle
+                } else {
+                    1.0 - refract_dir.dot(&surface_normal)
+                };
 
-    let tdir =
-        if into {
-            (ray.direction*nnt - surface_normal*(1.0*(ddn*nnt+cos2t.sqrt()))).normalise()
-        } else {
-            (ray.direction*nnt - surface_normal*(-1.0*(ddn*nnt+cos2t.sqrt()))).normalise()
-        };
+            let total_reflected = normal_reflected + (1.0 - normal_reflected) * c.powi(5);
+            let total_refracted = 1.0 - total_reflected;
+            let reflect_probability = 0.25 + 0.5 * total_reflected;
 
-    let a = nt - nc;
-    let b = nt + nc;
-    let r0 = a * a / (b * b);
-    let c =
-        if into {
-            1.0 + ddn
-        } else {
-            1.0 - tdir.dot(&surface_normal)
-        };
+            // Weight results based on probability
+            let reflect_weight = total_reflected / reflect_probability;
+            let refract_weight = total_refracted / (1.0 - reflect_probability);
 
-    let re = r0 + (1.0 - r0) * c.powi(5);
-    let tr = 1.0 - re;
-    let p = 0.25 + 0.5 * re;
-    let rp = re / p;
-    let tp = tr / (1.0 - p);
-
-    if depth > 2 {
-        if rng.next_f64() < p {
-            obj.emission + color * radiance(&scene, &refl_ray, depth + 1, rng, 1.0)*rp
-        } else {
-            obj.emission + color * radiance(&scene, &Ray{origin: intersect_point, direction: tdir}, depth + 1, rng, 1.0)*tp
-        }
-    } else {
-        obj.emission + color * radiance(&scene, &refl_ray, depth + 1, rng, 1.0)*re+radiance(&scene, &Ray{origin: intersect_point, direction: tdir}, depth + 1, rng, 1.0)*tr
+            // if depth is shallow, make 2 recursive calls
+            if depth > 2 {
+                if rng.next_f64() < reflect_probability {
+                    obj.emission + color * radiance(&scene, &refl_ray, depth + 1, rng, 1.0) * reflect_weight
+                } else {
+                    obj.emission + color * radiance(&scene, &Ray{origin: intersect_point, direction: refract_dir}, depth + 1, rng, 1.0) * refract_weight
+                }
+            } else {
+                obj.emission + color * radiance(&scene, &refl_ray, depth + 1, rng, 1.0) * total_reflected
+                    + radiance(&scene, &Ray{origin: intersect_point, direction: refract_dir}, depth + 1, rng, 1.0) * total_refracted
+            }
+        },
     }
 }
 
