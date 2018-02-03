@@ -138,10 +138,8 @@ mod tests {
         let u: Vec3d = v.normalise();
 
         assert!((u.length() - 1.0).abs() < 0.001);
-        assert!((v.length() - 1.0).abs() < 0.001);
         assert!((w.length() - 1.0).abs() < 0.001);
         println!("u: {:?}", u);
-        println!("v: {:?}", v);
         println!("w: {:?}", w);
 
         let p: Vec3d = Vec3d{x: 0.0, y: -0.002908, z: 0.0}.normalise();

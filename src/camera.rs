@@ -76,13 +76,16 @@ impl Camera {
         let mut screen = vec![Vec3d::default(); width * height];
         for sample in 0..samples {
             print!("Rendering {:.4}%\r", 100 * sample / samples);
-            io::stdout().flush().unwrap();
+            match io::stdout().flush() {
+                Ok(_v) => {},
+                Err(e) => { println!("{}", e) },
+            }
             self.single_sample(&mut screen, width, height, weight, &scene);
             if save_per_sample || sample == samples - 1 {
                 let image = to_image(width, height, &screen);
                 match image.save(&path) {
                     Ok(_v) => {},
-                    Err(e) => {println!("{}", e)},
+                    Err(e) => { println!("{}", e) },
                 }
             }
         }
