@@ -51,18 +51,51 @@ fn get_reflected_ray(ray: &Ray, surface_normal: &Vec3d, surface_point: &Vec3d) -
     }
 }
 
-fn diff_radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, light_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
+fn diff_radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool, light_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
     let random_direction = get_random_direction(rng, &light_normal);
 
-    let fmu = obj.color * radiance(&scene, &Ray{origin: *intersect_point, direction: random_direction}, depth + 1, rng);
-    return obj.emission + fmu;
+    // Loop over any lights
+    let mut e = Vec3d::default();
+    scene.spheres.iter().enumerate().for_each(|(i, sphere)| {
+        if sphere.emission.x <= 0.0 && sphere.emission.y <= 0.0 && sphere.emission.z <= 0.0 {
+            // skip non-lights
+        } else {
+
+            // Create random direction towards sphere
+            let sw = sphere.position - *intersect_point;
+            let su = ((if sw.x.abs() > 0.1 { Vec3d{x: 0.0, y: 1.0, z: 0.0} } else { Vec3d{x: 1.0, y: 0.0, z: 0.0} }).cross(sw)).normalise();
+            let sv = sw.cross(su);
+
+            let relative_intersect = *intersect_point - sphere.position;
+            let cos_a_max = (1.0 - sphere.radius * sphere.radius / relative_intersect.dot(&relative_intersect)).sqrt();
+            let eps1 = rng.next_f64();
+            let eps2 = rng.next_f64();
+            let cos_a = 1.0 - eps1 + eps1 * cos_a_max;
+            let sin_a = (1.0 - cos_a * cos_a).sqrt();
+            let phi = 2.0 * PI * eps2;
+            let l = su * phi.cos() * sin_a + sv * phi.sin() * sin_a + sw * cos_a;
+            l.normalise();
+
+            // Shoot shadow ray
+            let (intersects, closest_intersect_distance, id) = scene.intersect(ray);
+
+            if id == i {  // shadow ray
+              let omega = 2.0 * PI * (1.0 - cos_a_max);
+              e = e + obj.color * (sphere.emission * l.dot(light_normal) * omega) * (1.0 / PI);  // 1/pi for brdf
+            }
+        }
+    });
+
+    //return obj.e*E+e+f.mult(radiance(Ray(x,d),depth,Xi,0));
+
+    return if emit { obj.emission + e } else {e} + obj.color * radiance(&scene, &Ray{origin: *intersect_point, direction: random_direction}, depth + 1, rng, false);
 }
 
-fn spec_radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, surface_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
-    return obj.emission + obj.color * radiance(&scene, &get_reflected_ray(&ray, &surface_normal, &intersect_point), depth + 1, rng);
+fn spec_radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool, surface_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
+    return obj.emission + obj.color * radiance(&scene, &get_reflected_ray(&ray, &surface_normal, &intersect_point), depth + 1, rng, true);
 }
 
-fn refr_radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, surface_normal: &Vec3d, intersect_point: &Vec3d, light_normal: &Vec3d, obj: &Sphere) -> Vec3d {
+fn refr_radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool, surface_normal: &Vec3d, intersect_point: &Vec3d, light_normal: &Vec3d, obj: &Sphere) -> Vec3d {
     let refl_ray = get_reflected_ray(&ray, &surface_normal, &intersect_point);
     let into = surface_normal.dot(&light_normal) > 0.0;
 
@@ -74,7 +107,7 @@ fn refr_radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, surf
     let cos2t = 1.0 - refraction * refraction * (1.0 - angle * angle);
     if cos2t < 0.0 {
         // Total internal reflection so all light is reflected (internally)
-        return obj.emission + obj.color * radiance(&scene, &refl_ray, depth + 1, rng);
+        return obj.emission + obj.color * radiance(&scene, &refl_ray, depth + 1, rng, true);
     }
 
     let refract_dir = (ray.direction * refraction - *surface_normal * (if into {1.0} else {-1.0} * (angle * refraction + cos2t.sqrt()))).normalise();
@@ -101,18 +134,18 @@ fn refr_radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, surf
     // if depth is shallow, make 2 recursive calls
     if depth > 2 {
         if rng.next_f64() < reflect_probability {
-            obj.emission + obj.color * radiance(&scene, &refl_ray, depth + 1, rng) * reflect_weight
+            obj.emission + obj.color * radiance(&scene, &refl_ray, depth + 1, rng, true) * reflect_weight
         } else {
-            obj.emission + obj.color * radiance(&scene, &Ray{origin: *intersect_point, direction: refract_dir}, depth + 1, rng) * refract_weight
+            obj.emission + obj.color * radiance(&scene, &Ray{origin: *intersect_point, direction: refract_dir}, depth + 1, rng, true) * refract_weight
         }
     } else {
-        obj.emission + obj.color * radiance(&scene, &refl_ray, depth + 1, rng) * total_reflected
-            + radiance(&scene, &Ray{origin: *intersect_point, direction: refract_dir}, depth + 1, rng) * total_refracted
+        obj.emission + obj.color * radiance(&scene, &refl_ray, depth + 1, rng, true) * total_reflected
+            + radiance(&scene, &Ray{origin: *intersect_point, direction: refract_dir}, depth + 1, rng, true) * total_refracted
     }
 
 }
 
-pub fn radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng) -> Vec3d {
+pub fn radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool) -> Vec3d {
     let (intersects, closest_intersect_distance, id) = scene.intersect(ray);
     if !intersects {  // if miss, return black
         return Vec3d{x:0.0, y:0.0, z:0.0};
@@ -142,9 +175,9 @@ pub fn radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng) -> Ve
         };
 
     match obj.reflection {
-        ReflectType::DIFF => diff_radiance(&scene, &ray, depth, rng, &light_normal, &intersect_point, &obj),
-        ReflectType::SPEC => spec_radiance(&scene, &ray, depth, rng, &surface_normal, &intersect_point, &obj),
-        ReflectType::REFR => refr_radiance(&scene, &ray, depth, rng, &surface_normal, &intersect_point, &light_normal, &obj),
+        ReflectType::DIFF => diff_radiance(&scene, &ray, depth, rng, emit, &light_normal, &intersect_point, &obj),
+        ReflectType::SPEC => spec_radiance(&scene, &ray, depth, rng, emit, &surface_normal, &intersect_point, &obj),
+        ReflectType::REFR => refr_radiance(&scene, &ray, depth, rng, emit, &surface_normal, &intersect_point, &light_normal, &obj),
     }
 }
 
