@@ -11,7 +11,7 @@ pub struct Config {
 impl Config {
     pub fn new(width: usize, height: usize, samples: usize) -> Config {
         Config {
-            explicit_light_sampling: true,
+            explicit_light_sampling: false,
             height: height,
             save_per_sample: true,
             tent_filter: true,
