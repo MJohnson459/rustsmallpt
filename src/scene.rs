@@ -86,7 +86,6 @@ impl Scene {
         spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: wall_radius+room_height, z: room_depth/2.0},              emission: Vec3d::default(),    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // Top
 
         spheres.push(Sphere {radius: light_radius, position: Vec3d{x: room_width/2.0, y: room_height-light_radius, z: room_depth/2.0},              emission: Vec3d{x:4.0,y:4.0,z:4.0}*100.0, color: Vec3d::default(),    reflection: ReflectType::DIFF}); // light
-        spheres.push(Sphere {radius: light_radius+40.0, position: Vec3d{x: room_width/2.0, y: room_height-light_radius+39.0, z: room_depth/2.0},    emission: Vec3d::default(), color: Vec3d::new(1.0,1.0,1.0)*0.999 ,    reflection: ReflectType::REFR}); // light
 
         spheres.push(Sphere {radius: 16.5, position: Vec3d{x: 27.0, y: 16.5, z: 47.0}, emission: Vec3d::default(), color: Vec3d{x:1.0,y:1.0,z:1.0}*0.95, reflection: ReflectType::SPEC}); // mirror
         spheres.push(Sphere {radius: 16.5, position: Vec3d{x: 73.0, y: 30.0, z: 78.0}, emission: Vec3d::default(), color: Vec3d{x:1.0,y:1.0,z:1.0}*0.95, reflection: ReflectType::REFR}); // glass

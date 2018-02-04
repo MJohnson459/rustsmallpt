@@ -51,10 +51,10 @@ fn get_reflected_ray(ray: &Ray, surface_normal: &Vec3d, surface_point: &Vec3d) -
     }
 }
 
-fn diff_radiance(config: &Config, _ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool, surface_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
+fn diff_radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool, surface_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
 
     let mut e = Vec3d::default();
-    if config.explicit_light_sampling {
+    if config.explicit_light_sampling{
         // Loop over any lights
         config.scene.spheres.iter().enumerate().for_each(|(i, sphere)| {
             if sphere.emission.x <= 0.0 && sphere.emission.y <= 0.0 && sphere.emission.z <= 0.0 {
@@ -63,32 +63,39 @@ fn diff_radiance(config: &Config, _ray: &Ray, depth: i32, rng: &mut ThreadRng, e
 
                 // Create random direction towards sphere
                 let sw = sphere.position - *intersect_point;
-                let su = ((if sw.x.abs() > 0.1 { Vec3d{x: 0.0, y: 1.0, z: 0.0} } else { Vec3d{x: 1.0, y: 0.0, z: 0.0} }).cross(sw)).normalise();
-                let sv = sw.cross(su);
 
-                let relative_intersect = *intersect_point - sphere.position;
-                let cos_a_max = (1.0 - sphere.radius * sphere.radius / relative_intersect.dot(&relative_intersect) ).sqrt();
+                if surface_normal.dot(&sw) >= 0.0 {
 
-                let eps1 = rng.next_f64();
-                let eps2 = rng.next_f64();
-                let cos_a = 1.0 - eps1 + eps1 * cos_a_max;
-                let sin_a = (1.0 - cos_a * cos_a).sqrt();
-                let phi = 2.0 * PI * eps2;
-                let l = (su * phi.cos() * sin_a + sv * phi.sin() * sin_a + sw * cos_a).normalise();
+                    let su = ((if sw.x.abs() > 0.1 { Vec3d{x: 0.0, y: 1.0, z: 0.0} } else { Vec3d{x: 1.0, y: 0.0, z: 0.0} }).cross(sw)).normalise();
+                    let sv = sw.cross(su);
 
-                // Shoot shadow ray
-                let (intersects, _, id) = config.scene.intersect(&Ray{origin: *intersect_point, direction: l});
+                    let relative_intersect = *intersect_point - sphere.position;
+                    let cos_a_max = (1.0 - sphere.radius * sphere.radius / relative_intersect.dot(&relative_intersect) ).sqrt();
 
-                if intersects && id == i {  // shadow ray
-                    let omega = 2.0 * PI * (1.0 - cos_a_max); // 1 / probability with respect to solid angle
-                    e = e + obj.color.mult(sphere.emission * l.dot(surface_normal) * omega) * (1.0 / PI);  // 1/pi for brdf
+                    let eps1 = rng.next_f64();
+                    let eps2 = rng.next_f64();
+                    let cos_a = 1.0 - eps1 + eps1 * cos_a_max;
+                    let sin_a = (1.0 - cos_a * cos_a).sqrt();
+                    let phi = 2.0 * PI * eps2;
+                    let l = (su * phi.cos() * sin_a + sv * phi.sin() * sin_a + sw * cos_a).normalise();
+
+                    // Shoot shadow ray
+                    let (intersects, _, id) = config.scene.intersect(&Ray{origin: *intersect_point, direction: l});
+
+                    if intersects && id == i {  // shadow ray
+                        let omega = 2.0 * PI * (1.0 - cos_a_max); // 1 / probability with respect to solid angle
+                        e = e + obj.color.mult(sphere.emission * l.dot(surface_normal) * omega) * (1.0 / PI);  // 1/pi for brdf
+                        //println!("e: {:?}", e);
+                    }
                 }
             }
         });
     }
 
+    let new_emit = !config.explicit_light_sampling || e.length() == 0.0;
+
     let random_direction = get_random_direction(rng, &surface_normal);
-    return if emit { obj.emission + e } else { e } + obj.color * radiance(&config, &Ray{origin: *intersect_point, direction: random_direction}, depth + 1, rng, !config.explicit_light_sampling);
+    return if emit { obj.emission + e } else { e } + obj.color * radiance(&config, &Ray{origin: *intersect_point, direction: random_direction}, depth + 1, rng, new_emit);
 }
 
 fn spec_radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, surface_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
