@@ -131,9 +131,10 @@ mod tests {
         let height = 100;
         let weight = 1.0;
         let scene = Scene::new2();
-        let camera = Camera::new(width, height);
+        let config = Config::new(width, height, 1);
+        let camera = Camera::new(&config);
         let mut prev_screen = vec!(Vec3d::default(); width * height);
-        camera.single_sample(&mut prev_screen, width, height, weight, &scene);
+        camera.single_sample(&mut prev_screen, &config, weight, &scene);
     }
 }
 
@@ -149,10 +150,11 @@ mod bench {
         let width = 100;
         let height = 100;
         let scene = Scene::new2();
-        let camera = Camera::new(width, height);
+        let config = Config::new(width, height, 1);
+        let camera = Camera::new(&config);
         b.iter(|| {
             let mut prev_screen = vec!(Vec3d::default(); width * height);
-            camera.single_sample(&mut prev_screen, width, height, 1.0, &scene)
+            camera.single_sample(&mut prev_screen, &config, 1.0, &scene)
         });
     }
 
