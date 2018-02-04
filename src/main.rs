@@ -9,7 +9,6 @@ extern crate rand;
 extern crate rayon;
 
 use docopt::Docopt;
-use std::path::Path;
 
 mod camera;
 mod config;
@@ -23,7 +22,6 @@ mod vector_3d;
 use camera::Camera;
 use config::Config;
 use scene::AvailableScenes;
-use scene::Scene;
 use utility::*;
 
 
@@ -77,31 +75,12 @@ fn main() {
 
     print_estimate(width, height, samples);
 
-    let scene: Scene;
-    match args.flag_scene {
-        Some(x) => {
-            match x {
-                AvailableScenes::Default => scene = Scene::new(),
-                AvailableScenes::Floating => scene = Scene::new2(),
-                AvailableScenes::Lightbulb => scene = Scene::new3(),
-            }
-        },
-        None => {
-            println!("Using default scene Floating");
-            scene = Scene::new2();
-        }
-    }
-
     let time_start = time::precise_time_s();
 
-
-    let image_name = format!("{}_{}_{}_{}.png", scene.name, width, height, samples);
-    let path = Path::new(&image_name);
-
-    let config = Config::new(width, height, samples);
+    let config = Config::new(width, height, samples, args.flag_scene);
 
     let camera = Camera::new(&config);
-    camera.render_scene(&scene, &config, path);
+    camera.render_scene(&config);
 
     let time_taken = time::precise_time_s() - time_start;
 

@@ -6,11 +6,9 @@ use std::io::{self, Write};
 use image::ImageBuffer;
 use rand::Rng;
 use rayon::prelude::*;
-use std::path::Path;
 
 use ray::Ray;
 use ray::radiance;
-use scene::Scene;
 use utility::*;
 use vector_3d::Vec3d;
 use config::Config;
@@ -37,7 +35,7 @@ impl Camera {
         }
     }
 
-    fn update_pixel(&self, x: f64, y: f64, config: &Config, weight: f64, scene: &Scene) -> Vec3d {
+    fn update_pixel(&self, x: f64, y: f64, config: &Config, weight: f64) -> Vec3d {
         let width = config.width as f64;
         let height = config.height as f64;
         let mut rng = rand::thread_rng();
@@ -51,14 +49,14 @@ impl Camera {
                     let y_offset = calculate_offset(sample_y as f64);
 
                     let d = self.cx * ((x + x_offset) / width - 0.5) + self.cy * ((y + y_offset) / height - 0.5) + self.ray.direction;
-                    let rad = radiance(&scene, &config, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, true);
+                    let rad = radiance(&config, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, true);
 
                     new_value += rad * 0.25; // 2x2 tent filter so weight is 0.25 each
                 }
             }
         } else {
             let d: Vec3d = self.cx * (x / width - 0.5) + self.cy * (y / height - 0.5) + self.ray.direction;
-            new_value = radiance(&scene, &config, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, true);
+            new_value = radiance(&config, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, true);
         }
 
         if config.explicit_light_sampling {
@@ -68,15 +66,15 @@ impl Camera {
         }
     }
 
-    fn single_sample(&self, prev_screen: &mut Vec<Vec3d>, config: &Config, weight: f64, scene: &Scene) {
+    fn single_sample(&self, prev_screen: &mut Vec<Vec3d>, config: &Config, weight: f64) {
         prev_screen.par_iter_mut().enumerate().for_each(|(i, value)| {
             let x = i % config.width;
             let y = i / config.width;
-            *value = *value + self.update_pixel(x as f64, y as f64, config, weight, &scene);
+            *value = *value + self.update_pixel(x as f64, y as f64, config, weight);
         });
     }
 
-    pub fn render_scene(&self, scene: &Scene, config: &Config, path: &Path) {
+    pub fn render_scene(&self, config: &Config) {
         let weight = 1.0 / config.samples as f64;
         let mut screen = vec![Vec3d::default(); config.width * config.height];
         for sample in 0..config.samples {
@@ -85,10 +83,10 @@ impl Camera {
                 Ok(_v) => {},
                 Err(e) => { println!("{}", e) },
             }
-            self.single_sample(&mut screen, &config, weight, &scene);
+            self.single_sample(&mut screen, &config, weight);
             if config.save_per_sample || sample == config.samples - 1 {
                 let image = to_image(config.width, config.height, &screen);
-                match image.save(&path) {
+                match image.save(config.path.as_path()) {
                     Ok(_v) => {},
                     Err(e) => { println!("{}", e) },
                 }
@@ -124,6 +122,7 @@ fn to_image(width: usize, height: usize, screen: &Vec<Vec3d>) -> ImageBuffer<ima
 #[cfg(test)]
 mod tests {
     use super::*;
+    use scene::AvailableScenes;
 
     #[test]
     fn test_single_sample() {
@@ -131,7 +130,7 @@ mod tests {
         let height = 100;
         let weight = 1.0;
         let scene = Scene::new2();
-        let config = Config::new(width, height, 1);
+        let config = Config::new(width, height, 1, Some(AvailableScenes::Floating));
         let camera = Camera::new(&config);
         let mut prev_screen = vec!(Vec3d::default(); width * height);
         camera.single_sample(&mut prev_screen, &config, weight, &scene);
@@ -144,13 +143,14 @@ mod bench {
 
     use super::*;
     use self::test::Bencher;
+    use scene::AvailableScenes;
 
     #[bench]
     fn bench_single_sample(b: &mut Bencher) {
         let width = 100;
         let height = 100;
         let scene = Scene::new2();
-        let config = Config::new(width, height, 1);
+        let config = Config::new(width, height, 1, Some(AvailableScenes::Floating));
         let camera = Camera::new(&config);
         b.iter(|| {
             let mut prev_screen = vec!(Vec3d::default(); width * height);

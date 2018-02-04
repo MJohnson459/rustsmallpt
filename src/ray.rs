@@ -4,7 +4,6 @@ use rand::Rng;
 
 use config::Config;
 use material::ReflectType;
-use scene::Scene;
 use sphere::Sphere;
 use vector_3d::Vec3d;
 
@@ -52,12 +51,12 @@ fn get_reflected_ray(ray: &Ray, surface_normal: &Vec3d, surface_point: &Vec3d) -
     }
 }
 
-fn diff_radiance(scene: &Scene, config: &Config, _ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool, oriented_surface_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
+fn diff_radiance(config: &Config, _ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool, oriented_surface_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
 
     let mut e = Vec3d::default();
     if config.explicit_light_sampling {
         // Loop over any lights
-        scene.spheres.iter().enumerate().for_each(|(i, sphere)| {
+        config.scene.spheres.iter().enumerate().for_each(|(i, sphere)| {
             if sphere.emission.x <= 0.0 && sphere.emission.y <= 0.0 && sphere.emission.z <= 0.0 {
                 // skip non-lights
             } else {
@@ -78,7 +77,7 @@ fn diff_radiance(scene: &Scene, config: &Config, _ray: &Ray, depth: i32, rng: &m
                 let l = (su * phi.cos() * sin_a + sv * phi.sin() * sin_a + sw * cos_a).normalise();
 
                 // Shoot shadow ray
-                let (intersects, _, id) = scene.intersect(&Ray{origin: *intersect_point, direction: l});
+                let (intersects, _, id) = config.scene.intersect(&Ray{origin: *intersect_point, direction: l});
 
                 if intersects && id == i {  // shadow ray
                     let omega = 2.0 * PI * (1.0 - cos_a_max); // 1 / probability with respect to solid angle
@@ -89,14 +88,14 @@ fn diff_radiance(scene: &Scene, config: &Config, _ray: &Ray, depth: i32, rng: &m
     }
 
     let random_direction = get_random_direction(rng, &oriented_surface_normal);
-    return if emit { obj.emission + e } else { e } + obj.color * radiance(&scene, &config, &Ray{origin: *intersect_point, direction: random_direction}, depth + 1, rng, !config.explicit_light_sampling);
+    return if emit { obj.emission + e } else { e } + obj.color * radiance(&config, &Ray{origin: *intersect_point, direction: random_direction}, depth + 1, rng, !config.explicit_light_sampling);
 }
 
-fn spec_radiance(scene: &Scene, config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, surface_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
-    obj.emission + obj.color * radiance(&scene, &config, &get_reflected_ray(&ray, &surface_normal, &intersect_point), depth + 1, rng, true)
+fn spec_radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, surface_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
+    obj.emission + obj.color * radiance(&config, &get_reflected_ray(&ray, &surface_normal, &intersect_point), depth + 1, rng, true)
 }
 
-fn refr_radiance(scene: &Scene, config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, surface_normal: &Vec3d, intersect_point: &Vec3d, oriented_surface_normal: &Vec3d, obj: &Sphere) -> Vec3d {
+fn refr_radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, surface_normal: &Vec3d, intersect_point: &Vec3d, oriented_surface_normal: &Vec3d, obj: &Sphere) -> Vec3d {
     let refl_ray = get_reflected_ray(&ray, &surface_normal, &intersect_point);
     let into = surface_normal.dot(&oriented_surface_normal) > 0.0;
 
@@ -108,7 +107,7 @@ fn refr_radiance(scene: &Scene, config: &Config, ray: &Ray, depth: i32, rng: &mu
     let cos2t = 1.0 - refraction * refraction * (1.0 - angle * angle);
     if cos2t < 0.0 {
         // Total internal reflection so all light is reflected (internally)
-        return obj.emission + obj.color.mult(radiance(&scene, &config, &refl_ray, depth + 1, rng, true));
+        return obj.emission + obj.color.mult(radiance(&config, &refl_ray, depth + 1, rng, true));
     }
 
     let refract_dir = (ray.direction * refraction - *surface_normal * (if into {1.0} else {-1.0} * (angle * refraction + cos2t.sqrt()))).normalise();
@@ -137,25 +136,25 @@ fn refr_radiance(scene: &Scene, config: &Config, ray: &Ray, depth: i32, rng: &mu
         if depth > 2 {
             if rng.next_f64() < reflect_probability {
                 // reflect ray
-                radiance(&scene, &config, &refl_ray, depth + 1, rng, true) * reflect_weight
+                radiance(&config, &refl_ray, depth + 1, rng, true) * reflect_weight
             } else {
                 // refract ray
-                radiance(&scene, &config, &Ray{origin: *intersect_point, direction: refract_dir}, depth + 1, rng, true) * refract_weight
+                radiance(&config, &Ray{origin: *intersect_point, direction: refract_dir}, depth + 1, rng, true) * refract_weight
             }
         } else {
             // do both
-            radiance(&scene, &config, &refl_ray, depth + 1, rng, true) * total_reflected
-            + radiance(&scene, &config, &Ray{origin: *intersect_point, direction: refract_dir}, depth + 1, rng, true) * total_refracted
+            radiance(&config, &refl_ray, depth + 1, rng, true) * total_reflected
+            + radiance(&config, &Ray{origin: *intersect_point, direction: refract_dir}, depth + 1, rng, true) * total_refracted
         });
 }
 
-pub fn radiance(scene: &Scene, config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool) -> Vec3d {
-    let (intersects, closest_intersect_distance, id) = scene.intersect(ray);
+pub fn radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool) -> Vec3d {
+    let (intersects, closest_intersect_distance, id) = config.scene.intersect(ray);
     if !intersects {  // if miss, return black
         return Vec3d::default();
     }
 
-    let obj: &Sphere = &scene.spheres[id];  // the hit object
+    let obj: &Sphere = &config.scene.spheres[id];  // the hit object
 
     // Russian Roulette
     // Use maximum component (r,g,b) of the surface color
@@ -181,9 +180,9 @@ pub fn radiance(scene: &Scene, config: &Config, ray: &Ray, depth: i32, rng: &mut
         };
 
     match obj.reflection {
-        ReflectType::DIFF => diff_radiance(&scene, &config, &ray, depth, rng, emit, &oriented_surface_normal, &intersect_point, &obj),
-        ReflectType::SPEC => spec_radiance(&scene, &config, &ray, depth, rng, &surface_normal, &intersect_point, &obj),
-        ReflectType::REFR => refr_radiance(&scene, &config, &ray, depth, rng, &surface_normal, &intersect_point, &oriented_surface_normal, &obj),
+        ReflectType::DIFF => diff_radiance(&config, &ray, depth, rng, emit, &oriented_surface_normal, &intersect_point, &obj),
+        ReflectType::SPEC => spec_radiance(&config, &ray, depth, rng, &surface_normal, &intersect_point, &obj),
+        ReflectType::REFR => refr_radiance(&config, &ray, depth, rng, &surface_normal, &intersect_point, &oriented_surface_normal, &obj),
     }
 }
 
@@ -202,7 +201,7 @@ mod bench {
         let ray = Ray{origin: Vec3d{x: 50.0, y: 50.0, z: 100.0}, direction: Vec3d{x: 0.0, y: -0.042612, z: -1.0}.normalise()};
 
         b.iter(|| {
-            radiance(&scene, &config, &ray, 0, &mut rng)
+            radiance(&config, &ray, 0, &mut rng)
         });
     }
 
@@ -213,7 +212,7 @@ mod bench {
         let ray = Ray{origin: Vec3d{x: 50.0, y: 50.0, z: 260.0}, direction: Vec3d{x: 0.0, y: -0.042612, z: -1.0}.normalise()};
 
         b.iter(|| {
-            radiance(&scene, &config, &ray, 0, &mut rng)
+            radiance(&config, &ray, 0, &mut rng)
         });
     }
 }

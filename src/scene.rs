@@ -14,6 +14,14 @@ pub struct Scene {
 }
 
 impl Scene {
+    pub fn from_available(scene_name: AvailableScenes) -> Scene {
+        match scene_name {
+            AvailableScenes::Default => Scene::new(),
+            AvailableScenes::Floating => Scene::new2(),
+            AvailableScenes::Lightbulb => Scene::new3(),
+        }
+    }
+
     pub fn new() -> Scene {
         let mut spheres = Vec::new();
         let wall_radius = 1e5;
