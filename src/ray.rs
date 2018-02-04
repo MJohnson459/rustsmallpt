@@ -51,7 +51,7 @@ fn get_reflected_ray(ray: &Ray, surface_normal: &Vec3d, surface_point: &Vec3d) -
     }
 }
 
-fn diff_radiance(config: &Config, _ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool, oriented_surface_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
+fn diff_radiance(config: &Config, _ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool, surface_normal: &Vec3d, intersect_point: &Vec3d, obj: &Sphere) -> Vec3d {
 
     let mut e = Vec3d::default();
     if config.explicit_light_sampling {
@@ -81,13 +81,13 @@ fn diff_radiance(config: &Config, _ray: &Ray, depth: i32, rng: &mut ThreadRng, e
 
                 if intersects && id == i {  // shadow ray
                     let omega = 2.0 * PI * (1.0 - cos_a_max); // 1 / probability with respect to solid angle
-                    e = e + obj.color.mult(sphere.emission * l.dot(oriented_surface_normal) * omega) * (1.0 / PI);  // 1/pi for brdf
+                    e = e + obj.color.mult(sphere.emission * l.dot(surface_normal) * omega) * (1.0 / PI);  // 1/pi for brdf
                 }
             }
         });
     }
 
-    let random_direction = get_random_direction(rng, &oriented_surface_normal);
+    let random_direction = get_random_direction(rng, &surface_normal);
     return if emit { obj.emission + e } else { e } + obj.color * radiance(&config, &Ray{origin: *intersect_point, direction: random_direction}, depth + 1, rng, !config.explicit_light_sampling);
 }
 
@@ -180,7 +180,7 @@ pub fn radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, emi
         };
 
     match obj.reflection {
-        ReflectType::DIFF => diff_radiance(&config, &ray, depth, rng, emit, &oriented_surface_normal, &intersect_point, &obj),
+        ReflectType::DIFF => diff_radiance(&config, &ray, depth, rng, emit, &surface_normal, &intersect_point, &obj),
         ReflectType::SPEC => spec_radiance(&config, &ray, depth, rng, &surface_normal, &intersect_point, &obj),
         ReflectType::REFR => refr_radiance(&config, &ray, depth, rng, &surface_normal, &intersect_point, &oriented_surface_normal, &obj),
     }

@@ -49,14 +49,18 @@ impl Scene {
         let room_depth = 160.0; // z
         let camera_space = 100.0;
         let light_radius = 600.0;
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: wall_radius+1.0, y: room_height/2.0, z: room_depth/2.0},                      emission: Vec3d::default(),    color: Vec3d::from_rgb(0xCC1A1A),   reflection: ReflectType::DIFF}); // left
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: -wall_radius+room_width-1.0, y: room_height/2.0, z: room_depth/2.0},          emission: Vec3d::default(),    color: Vec3d::from_rgb(0x1A4DB3),   reflection: ReflectType::DIFF}); // right
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: room_height/2.0, z: wall_radius},                          emission: Vec3d::default(),    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // back
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: room_height/2.0, z: -wall_radius+room_depth+camera_space}, emission: Vec3d::default(),    color: Vec3d{x:0.0,y:0.0,z:0.0},    reflection: ReflectType::DIFF}); // front
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: wall_radius, z: room_depth/2.0},                           emission: Vec3d::default(),    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // bottom
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: -wall_radius+room_height, z: room_depth/2.0},              emission: Vec3d::default(),    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // Top
+        // Walls
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: -wall_radius, y: room_height/2.0, z: room_depth/2.0},                      emission: Vec3d::default(),    color: Vec3d::from_rgb(0xCC1A1A),   reflection: ReflectType::DIFF}); // left
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: wall_radius+room_width, y: room_height/2.0, z: room_depth/2.0},          emission: Vec3d::default(),    color: Vec3d::from_rgb(0x1A4DB3),   reflection: ReflectType::DIFF}); // right
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: room_height/2.0, z: -wall_radius},                          emission: Vec3d::default(),    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // back
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: room_height/2.0, z: wall_radius+room_depth+camera_space}, emission: Vec3d::default(),    color: Vec3d{x:0.0,y:0.0,z:0.0},    reflection: ReflectType::DIFF}); // front (behind camera)
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: -wall_radius, z: room_depth/2.0},                           emission: Vec3d::default(),    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // bottom
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: wall_radius+room_height, z: room_depth/2.0},              emission: Vec3d::default(),    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // Top
+
+        // Lights
         spheres.push(Sphere {radius: light_radius, position: Vec3d{x: room_width/2.0, y: light_radius+room_height-0.27, z: room_depth/2.0},         emission: Vec3d{x:12.0,y:12.0,z:12.0}, color: Vec3d::default(),    reflection: ReflectType::DIFF}); // light
 
+        // Objects
         spheres.push(Sphere {radius: 16.5, position: Vec3d{x: 27.0, y: 16.5, z: 47.0}, emission: Vec3d::default(), color: Vec3d{x:1.0,y:1.0,z:1.0}*0.95, reflection: ReflectType::SPEC}); // mirror
         spheres.push(Sphere {radius: 16.5, position: Vec3d{x: 73.0, y: 30.0, z: 78.0}, emission: Vec3d::default(), color: Vec3d{x:1.0,y:1.0,z:1.0}*0.95, reflection: ReflectType::REFR}); // glass
 
@@ -74,12 +78,13 @@ impl Scene {
         let room_depth = 160.0; // z
         let camera_space = 100.0;
         let light_radius = 1.5;
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: wall_radius+1.0, y: room_height/2.0, z: room_depth/2.0},                      emission: Vec3d::default(), color: Vec3d{x:0.8,y:0.1,z:0.1},    reflection: ReflectType::DIFF}); // left
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: -wall_radius+room_width-1.0, y: room_height/2.0, z: room_depth/2.0},          emission: Vec3d::default(), color: Vec3d{x:0.1,y:0.3,z:0.70},   reflection: ReflectType::DIFF}); // right
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: room_height/2.0, z: wall_radius},                          emission: Vec3d::default(), color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // back
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: room_height/2.0, z: -wall_radius+room_depth+camera_space}, emission: Vec3d::default(), color: Vec3d::default(),    reflection: ReflectType::DIFF}); // front
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: wall_radius, z: room_depth/2.0},                           emission: Vec3d::default(), color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // bottom
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: -wall_radius+room_height, z: room_depth/2.0},              emission: Vec3d::default(), color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // Top
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: -wall_radius, y: room_height/2.0, z: room_depth/2.0},                      emission: Vec3d::default(),    color: Vec3d::from_rgb(0xCC1A1A),   reflection: ReflectType::DIFF}); // left
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: wall_radius+room_width, y: room_height/2.0, z: room_depth/2.0},          emission: Vec3d::default(),    color: Vec3d::from_rgb(0x1A4DB3),   reflection: ReflectType::DIFF}); // right
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: room_height/2.0, z: -wall_radius},                          emission: Vec3d::default(),    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // back
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: room_height/2.0, z: wall_radius+room_depth+camera_space}, emission: Vec3d::default(),    color: Vec3d{x:0.0,y:0.0,z:0.0},    reflection: ReflectType::DIFF}); // front (behind camera)
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: -wall_radius, z: room_depth/2.0},                           emission: Vec3d::default(),    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // bottom
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: wall_radius+room_height, z: room_depth/2.0},              emission: Vec3d::default(),    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // Top
+
         spheres.push(Sphere {radius: light_radius, position: Vec3d{x: room_width/2.0, y: room_height-light_radius, z: room_depth/2.0},              emission: Vec3d{x:4.0,y:4.0,z:4.0}*100.0, color: Vec3d::default(),    reflection: ReflectType::DIFF}); // light
         spheres.push(Sphere {radius: light_radius+40.0, position: Vec3d{x: room_width/2.0, y: room_height-light_radius+39.0, z: room_depth/2.0},    emission: Vec3d::default(), color: Vec3d::new(1.0,1.0,1.0)*0.999 ,    reflection: ReflectType::REFR}); // light
 
