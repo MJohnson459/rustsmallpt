@@ -132,8 +132,8 @@ fn refr_radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, surf
     let reflect_weight = total_reflected / reflect_probability;
     let refract_weight = total_refracted / (1.0 - reflect_probability);
 
-    // if depth is shallow, make 2 recursive calls
     return obj.emission + obj.color.mult(
+        // if depth is shallow, we want to sample everything
         if depth > 2 {
             if rng.next_f64() < reflect_probability {
                 // reflect ray
@@ -152,7 +152,7 @@ fn refr_radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, surf
 pub fn radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool) -> Vec3d {
     let (intersects, closest_intersect_distance, id) = scene.intersect(ray);
     if !intersects {  // if miss, return black
-        return Vec3d{x:0.0, y:0.0, z:0.0};
+        return Vec3d::default();
     }
 
     let obj: &Sphere = &scene.spheres[id];  // the hit object
@@ -162,7 +162,9 @@ pub fn radiance(scene: &Scene, ray: &Ray, depth: i32, rng: &mut ThreadRng, emit:
     let brightest_color = get_brightest_color(&obj.color); // brightest colour
 
     // Don't do Russian Roulette until after depth 5
-    if (depth > 5 || brightest_color == 0.0) && rng.next_f64() >= brightest_color {
+    // More likely to end on a darker surface
+    if brightest_color == 0.0 ||
+        (depth > 5 && rng.next_f64() >= brightest_color) {
         return if emit {obj.emission} else {Vec3d::default()};
     }
 
