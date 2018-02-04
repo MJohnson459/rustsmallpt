@@ -2,6 +2,8 @@ use std::f64;
 
 use std::ops::{Add,Sub,Mul,AddAssign};
 
+use utility::*;
+
 
 // ------- VEC ------------
 #[derive(Default, Copy, Clone, Debug)]
@@ -50,6 +52,14 @@ impl Vec3d {
             z: self.z * other.z,
         }
 
+    }
+
+    pub fn clamp(self) -> Vec3d {
+        Vec3d {
+            x: clamp(self.x),
+            y: clamp(self.y),
+            z: clamp(self.z),
+        }
     }
 }
 

@@ -59,7 +59,7 @@ impl Camera {
             new_value = radiance(&scene, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, true);
         }
 
-        new_value * weight
+        new_value.clamp() * weight
     }
 
     fn single_sample(&self, prev_screen: &mut Vec<Vec3d> , width: usize, height: usize, weight: f64, scene: &Scene) {
@@ -97,7 +97,7 @@ fn calculate_offset(bias: f64) -> f64 {
     let mut rng = rand::thread_rng();
     // Tent filter
     let dx: f64;
-    let x = 2.0 * rng.next_f64(); //erand48(xi);
+    let x = 2.0 * rng.next_f64();
     if x < 1.0 {
         dx = x.sqrt() - 1.0;
     } else {

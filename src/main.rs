@@ -36,7 +36,7 @@ Usage:
 Options:
     -h --help       Show this screen
     --scene SCENE   The scene to render
-                    Valid values: New1, New2
+                    Valid values: Default, Floating, Lightbulb
 ";
 
 #[derive(Debug, Deserialize)]
@@ -79,12 +79,13 @@ fn main() {
     match args.flag_scene {
         Some(x) => {
             match x {
-                AvailableScenes::New1 => scene = Scene::new(),
-                AvailableScenes::New2 => scene = Scene::new2(),
+                AvailableScenes::Default => scene = Scene::new(),
+                AvailableScenes::Floating => scene = Scene::new2(),
+                AvailableScenes::Lightbulb => scene = Scene::new3(),
             }
         },
         None => {
-            println!("Using default scene New2");
+            println!("Using default scene Floating");
             scene = Scene::new2();
         }
     }
