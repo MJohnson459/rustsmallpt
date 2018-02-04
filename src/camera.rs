@@ -13,6 +13,7 @@ use ray::radiance;
 use scene::Scene;
 use utility::*;
 use vector_3d::Vec3d;
+use config::Config;
 
 pub struct Camera {
     ray: Ray,
@@ -21,12 +22,12 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn new(width: usize, height: usize) -> Camera {
+    pub fn new(config: &Config) -> Camera {
         let fov = 0.6;
         let position = Vec3d{x: 50.0, y: 50.0, z: 260.0};
 
         let ray: Ray = Ray{origin: position, direction: Vec3d{x: 0.0, y: -0.042612, z: -1.0}.normalise()};
-        let cx: Vec3d = Vec3d{x:(width as f64) * fov/(height as f64),y:0.0,z:0.0}; // x direction increment
+        let cx: Vec3d = Vec3d{x:(config.width as f64) * fov/(config.height as f64),y:0.0,z:0.0}; // x direction increment
         let cy: Vec3d = (cx.cross(ray.direction)).normalise() * fov;                    // y direction increment
 
         Camera {
@@ -36,53 +37,57 @@ impl Camera {
         }
     }
 
-    fn update_pixel(&self, x: f64, y: f64, width: f64, height: f64, weight: f64, scene: &Scene) -> Vec3d {
+    fn update_pixel(&self, x: f64, y: f64, config: &Config, weight: f64, scene: &Scene) -> Vec3d {
+        let width = config.width as f64;
+        let height = config.height as f64;
         let mut rng = rand::thread_rng();
-        let tent_filter = true;
 
         let mut new_value: Vec3d = Vec3d{x:0.0, y: 0.0, z: 0.0};
 
-        if tent_filter {
+        if config.tent_filter {
             for sample_y in 0..2 {
                 for sample_x in 0..2 {
                     let x_offset = calculate_offset(sample_x as f64);
                     let y_offset = calculate_offset(sample_y as f64);
 
                     let d = self.cx * ((x + x_offset) / width - 0.5) + self.cy * ((y + y_offset) / height - 0.5) + self.ray.direction;
-                    let rad = radiance(&scene, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, true);
+                    let rad = radiance(&scene, &config, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, true);
 
                     new_value += rad * 0.25; // 2x2 tent filter so weight is 0.25 each
                 }
             }
         } else {
             let d: Vec3d = self.cx * (x / width - 0.5) + self.cy * (y / height - 0.5) + self.ray.direction;
-            new_value = radiance(&scene, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, true);
+            new_value = radiance(&scene, &config, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, true);
         }
 
-        new_value.clamp() * weight
+        if config.explicit_light_sampling {
+            new_value.clamp() * weight
+        } else {
+            new_value * weight
+        }
     }
 
-    fn single_sample(&self, prev_screen: &mut Vec<Vec3d> , width: usize, height: usize, weight: f64, scene: &Scene) {
+    fn single_sample(&self, prev_screen: &mut Vec<Vec3d>, config: &Config, weight: f64, scene: &Scene) {
         prev_screen.par_iter_mut().enumerate().for_each(|(i, value)| {
-            let x = i % width;
-            let y = i / width;
-            *value = *value + self.update_pixel(x as f64, y as f64, width as f64, height as f64, weight, &scene);
+            let x = i % config.width;
+            let y = i / config.width;
+            *value = *value + self.update_pixel(x as f64, y as f64, config, weight, &scene);
         });
     }
 
-    pub fn render_scene(&self, scene: &Scene, width: usize, height: usize, samples: usize, path: &Path) {
-        let save_per_sample = true;
-        let weight = 1.0 / samples as f64;
-        let mut screen = vec![Vec3d::default(); width * height];
-        for sample in 0..samples {
-            print!("Rendering {:.4}%\r", 100 * sample / samples);
+    pub fn render_scene(&self, scene: &Scene, config: &Config, path: &Path) {
+        let weight = 1.0 / config.samples as f64;
+        let mut screen = vec![Vec3d::default(); config.width * config.height];
+        for sample in 0..config.samples {
+            print!("Rendering {:.4}%\r", 100 * sample / config.samples);
             match io::stdout().flush() {
                 Ok(_v) => {},
                 Err(e) => { println!("{}", e) },
             }
-            self.single_sample(&mut screen, width, height, weight, &scene);
-            if save_per_sample || sample == samples - 1 {
-                let image = to_image(width, height, &screen);
+            self.single_sample(&mut screen, &config, weight, &scene);
+            if config.save_per_sample || sample == config.samples - 1 {
+                let image = to_image(config.width, config.height, &screen);
                 match image.save(&path) {
                     Ok(_v) => {},
                     Err(e) => { println!("{}", e) },

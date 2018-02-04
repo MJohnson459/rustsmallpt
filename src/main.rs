@@ -12,6 +12,7 @@ use docopt::Docopt;
 use std::path::Path;
 
 mod camera;
+mod config;
 mod material;
 mod ray;
 mod scene;
@@ -20,6 +21,7 @@ mod utility;
 mod vector_3d;
 
 use camera::Camera;
+use config::Config;
 use scene::AvailableScenes;
 use scene::Scene;
 use utility::*;
@@ -96,8 +98,10 @@ fn main() {
     let image_name = format!("{}_{}_{}_{}.png", scene.name, width, height, samples);
     let path = Path::new(&image_name);
 
-    let camera = Camera::new(width, height);
-    camera.render_scene(&scene, width, height, samples, path);
+    let config = Config::new(width, height, samples);
+
+    let camera = Camera::new(&config);
+    camera.render_scene(&scene, &config, path);
 
     let time_taken = time::precise_time_s() - time_start;
 
