@@ -18,6 +18,14 @@ impl Vec3d {
         Vec3d {x: x, y: y, z: z}
     }
 
+    pub fn from_rgb(hex: u32) -> Vec3d {
+        Vec3d {
+            x: ((hex & 0xFF0000) >> 16) as f64 / 255.0,
+            y: ((hex & 0x00FF00) >>  8) as f64 / 255.0,
+            z: ((hex & 0x0000FF) >>  0) as f64 / 255.0,
+        }
+    }
+
     pub fn zeros() ->Vec3d {
         Vec3d {x: 0.0, y: 0.0, z: 0.0}
     }
@@ -150,6 +158,13 @@ impl PartialEq for Vec3d {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_rbg() {
+        let rgb = Vec3d::from_rgb(0xFF0000);
+        let vec = Vec3d{x: 1.0, y: 0.0, z: 0.0};
+        assert_eq!(rgb, vec);
+    }
 
     #[test]
     fn test_normalise() {

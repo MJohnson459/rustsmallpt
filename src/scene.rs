@@ -41,8 +41,8 @@ impl Scene {
         let room_depth = 160.0; // z
         let camera_space = 100.0;
         let light_radius = 600.0;
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: wall_radius+1.0, y: room_height/2.0, z: room_depth/2.0},                      emission: Vec3d{x:0.0,y:0.0,z:0.0},    color: Vec3d{x:0.8,y:0.1,z:0.1},    reflection: ReflectType::DIFF}); // left
-        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: -wall_radius+room_width-1.0, y: room_height/2.0, z: room_depth/2.0},          emission: Vec3d{x:0.0,y:0.0,z:0.0},    color: Vec3d{x:0.1,y:0.3,z:0.70},   reflection: ReflectType::DIFF}); // right
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: wall_radius+1.0, y: room_height/2.0, z: room_depth/2.0},                      emission: Vec3d{x:0.0,y:0.0,z:0.0},    color: Vec3d::from_rgb(0xCC1A1A),   reflection: ReflectType::DIFF}); // left
+        spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: -wall_radius+room_width-1.0, y: room_height/2.0, z: room_depth/2.0},          emission: Vec3d{x:0.0,y:0.0,z:0.0},    color: Vec3d::from_rgb(0x1A4DB3),   reflection: ReflectType::DIFF}); // right
         spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: room_height/2.0, z: wall_radius},                          emission: Vec3d{x:0.0,y:0.0,z:0.0},    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // back
         spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: room_height/2.0, z: -wall_radius+room_depth+camera_space}, emission: Vec3d{x:0.0,y:0.0,z:0.0},    color: Vec3d{x:0.0,y:0.0,z:0.0},    reflection: ReflectType::DIFF}); // front
         spheres.push(Sphere {radius: wall_radius,  position: Vec3d{x: room_width/2.0, y: wall_radius, z: room_depth/2.0},                           emission: Vec3d{x:0.0,y:0.0,z:0.0},    color: Vec3d{x:0.75,y:0.75,z:0.75}, reflection: ReflectType::DIFF}); // bottom
