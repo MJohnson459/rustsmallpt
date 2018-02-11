@@ -1,9 +1,8 @@
 use std::f64;
 
-use std::ops::{Add,Sub,Mul,AddAssign};
+use std::ops::{Add, AddAssign, Mul, Sub};
 
 use utility::*;
-
 
 // ------- VEC ------------
 #[derive(Default, Copy, Clone, Debug)]
@@ -15,42 +14,46 @@ pub struct Vec3d {
 
 impl Vec3d {
     pub fn new(x: f64, y: f64, z: f64) -> Vec3d {
-        Vec3d {x: x, y: y, z: z}
+        Vec3d { x: x, y: y, z: z }
     }
 
     pub fn from_rgb(hex: u32) -> Vec3d {
         Vec3d {
             x: ((hex & 0xFF0000) >> 16) as f64 / 255.0,
-            y: ((hex & 0x00FF00) >>  8) as f64 / 255.0,
-            z: ((hex & 0x0000FF) >>  0) as f64 / 255.0,
+            y: ((hex & 0x00FF00) >> 8) as f64 / 255.0,
+            z: ((hex & 0x0000FF) >> 0) as f64 / 255.0,
         }
     }
 
-    pub fn zeros() ->Vec3d {
-        Vec3d {x: 0.0, y: 0.0, z: 0.0}
+    pub fn zeros() -> Vec3d {
+        Vec3d {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        }
     }
 
     pub fn normalise(&self) -> Vec3d {
         let nx = self.x * self.x;
         let ny = self.y * self.y;
         let nz = self.z * self.z;
-        *self * (1.0/(nx + ny + nz).sqrt())
+        *self * (1.0 / (nx + ny + nz).sqrt())
     }
 
     pub fn dot(&self, other: &Vec3d) -> f64 {
-        self.x*other.x + self.y*other.y + self.z*other.z
+        self.x * other.x + self.y * other.y + self.z * other.z
     }
 
     pub fn cross(self, other: Vec3d) -> Vec3d {
         Vec3d {
-            x: self.y*other.z - self.z*other.y,
-            y: self.z*other.x - self.x*other.z,
-            z: self.x*other.y - self.y*other.x,
+            x: self.y * other.z - self.z * other.y,
+            y: self.z * other.x - self.x * other.z,
+            z: self.x * other.y - self.y * other.x,
         }
     }
 
     pub fn length(self) -> f64 {
-        (self.x*self.x + self.y*self.y + self.z*self.z).sqrt()
+        (self.x * self.x + self.y * self.y + self.z * self.z).sqrt()
     }
 
     pub fn mult(self, other: Vec3d) -> Vec3d {
@@ -59,7 +62,6 @@ impl Vec3d {
             y: self.y * other.y,
             z: self.z * other.z,
         }
-
     }
 
     pub fn clamp(self) -> Vec3d {
@@ -92,7 +94,7 @@ impl AddAssign for Vec3d {
     }
 }
 
-impl<'a,'b> Sub<&'b Vec3d> for &'a Vec3d {
+impl<'a, 'b> Sub<&'b Vec3d> for &'a Vec3d {
     type Output = Vec3d;
     fn sub(self, other: &'b Vec3d) -> Vec3d {
         Vec3d {
@@ -114,7 +116,7 @@ impl Sub for Vec3d {
     }
 }
 
-impl<'a,'b> Mul<&'b Vec3d> for &'a Vec3d {
+impl<'a, 'b> Mul<&'b Vec3d> for &'a Vec3d {
     type Output = Vec3d;
     fn mul(self, other: &'b Vec3d) -> Vec3d {
         Vec3d {
@@ -149,9 +151,8 @@ impl Mul<f64> for Vec3d {
 
 impl PartialEq for Vec3d {
     fn eq(&self, other: &Vec3d) -> bool {
-        ((self.x - other.x).abs() < 0.0001) &&
-        ((self.y - other.y).abs() < 0.0001) &&
-        ((self.z - other.z).abs() < 0.0001)
+        ((self.x - other.x).abs() < 0.0001) && ((self.y - other.y).abs() < 0.0001)
+            && ((self.z - other.z).abs() < 0.0001)
     }
 }
 
@@ -162,14 +163,26 @@ mod tests {
     #[test]
     fn test_rbg() {
         let rgb = Vec3d::from_rgb(0xFF0000);
-        let vec = Vec3d{x: 1.0, y: 0.0, z: 0.0};
+        let vec = Vec3d {
+            x: 1.0,
+            y: 0.0,
+            z: 0.0,
+        };
         assert_eq!(rgb, vec);
     }
 
     #[test]
     fn test_normalise() {
-        let v: Vec3d = Vec3d{x: -0.0, y: 0.001017, z: -0.0};
-        let w: Vec3d = Vec3d{x: 0.0, y: -0.003064, z: 0.0}.normalise();
+        let v: Vec3d = Vec3d {
+            x: -0.0,
+            y: 0.001017,
+            z: -0.0,
+        };
+        let w: Vec3d = Vec3d {
+            x: 0.0,
+            y: -0.003064,
+            z: 0.0,
+        }.normalise();
 
         let u: Vec3d = v.normalise();
 
@@ -178,13 +191,25 @@ mod tests {
         println!("u: {:?}", u);
         println!("w: {:?}", w);
 
-        let p: Vec3d = Vec3d{x: 0.0, y: -0.002908, z: 0.0}.normalise();
+        let p: Vec3d = Vec3d {
+            x: 0.0,
+            y: -0.002908,
+            z: 0.0,
+        }.normalise();
 
         println!("p: {:?}", p);
         assert!((p.length() - 1.0).abs() < 0.001);
 
-        let a = Vec3d{x: 0.003064, y: 0.0, z: -0.003064}.normalise();
-        let b = Vec3d{x: 0.003064, y: 0.0, z: -0.003064}.normalise();
+        let a = Vec3d {
+            x: 0.003064,
+            y: 0.0,
+            z: -0.003064,
+        }.normalise();
+        let b = Vec3d {
+            x: 0.003064,
+            y: 0.0,
+            z: -0.003064,
+        }.normalise();
         println!("a: {:?}, a.length: {}", a, a.length());
         println!("b: {:?}, b.length: {}", b, b.length());
         assert!((a.length() - 1.0).abs() < 0.001);
@@ -193,22 +218,62 @@ mod tests {
 
     #[test]
     fn test_cross() {
-        let u: Vec3d = Vec3d{x: 0.0, y: 1.0, z: 0.0};
-        let v: Vec3d = Vec3d{x: 1.0, y: 0.0, z: 0.0};
+        let u: Vec3d = Vec3d {
+            x: 0.0,
+            y: 1.0,
+            z: 0.0,
+        };
+        let v: Vec3d = Vec3d {
+            x: 1.0,
+            y: 0.0,
+            z: 0.0,
+        };
 
-        assert_eq!(u.cross(v), Vec3d{x: 0.0, y: 0.0, z: -1.0});
+        assert_eq!(
+            u.cross(v),
+            Vec3d {
+                x: 0.0,
+                y: 0.0,
+                z: -1.0,
+            }
+        );
         println!("u: {:?}", u);
         println!("v: {:?}", v);
 
-        let w = Vec3d { x: 0.003064, y: 0.999991, z: 0.003064 };
+        let w = Vec3d {
+            x: 0.003064,
+            y: 0.999991,
+            z: 0.003064,
+        };
 
-        let u1 = Vec3d{x:0.0,y:1.0,z:0.0}.cross(w);
-        let u2 = Vec3d{x:1.0,y:0.0,z:0.0}.cross(w);
+        let u1 = Vec3d {
+            x: 0.0,
+            y: 1.0,
+            z: 0.0,
+        }.cross(w);
+        let u2 = Vec3d {
+            x: 1.0,
+            y: 0.0,
+            z: 0.0,
+        }.cross(w);
 
-        assert_eq!(u1, Vec3d{x: 0.003064, y: 0.0, z: -0.003064});
-        assert_eq!(u2, Vec3d{x: 0.0, y: -0.003064, z: 0.999991});
+        assert_eq!(
+            u1,
+            Vec3d {
+                x: 0.003064,
+                y: 0.0,
+                z: -0.003064,
+            }
+        );
+        assert_eq!(
+            u2,
+            Vec3d {
+                x: 0.0,
+                y: -0.003064,
+                z: 0.999991,
+            }
+        );
     }
-
 
     /*#[test]
     fn bench_normalise() {

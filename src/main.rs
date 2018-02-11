@@ -1,12 +1,12 @@
 #![cfg_attr(feature = "unstable", feature(test))]
 
-#[macro_use]
-extern crate serde_derive;
 extern crate docopt;
-extern crate time;
 extern crate image;
 extern crate rand;
 extern crate rayon;
+#[macro_use]
+extern crate serde_derive;
+extern crate time;
 
 use docopt::Docopt;
 
@@ -23,7 +23,6 @@ use camera::Camera;
 use config::Config;
 use scene::AvailableScenes;
 use utility::*;
-
 
 // Write the Docopt usage string.
 static USAGE: &'static str = "
@@ -54,14 +53,13 @@ fn print_estimate(width: usize, height: usize, samples: usize) {
     println!("Number of threads: {}", rayon::current_num_threads());
 
     let time_per_spp: f64 = 1.7612e-6;
-    let est_time: f64 = time_per_spp*(samples*width*height) as f64;
+    let est_time: f64 = time_per_spp * (samples * width * height) as f64;
     println!("Estimated time [RELEASE]: {}", format_time(est_time));
 
     let time_per_spp: f64 = 1.9857e-6;
-    let est_time: f64 = time_per_spp*(samples*width*height) as f64;
+    let est_time: f64 = time_per_spp * (samples * width * height) as f64;
     println!("Estimated time [RELEASE][SAVE]: {}", format_time(est_time));
 }
-
 
 fn main() {
     // Parse argv and exit the program with an error message if it fails.
@@ -84,8 +82,16 @@ fn main() {
 
     let time_taken = time::precise_time_s() - time_start;
 
-    println!("Finished rendering. Time taken: {}", format_time(time_taken));
-    println!("time_per_spp*1e6: {}", (time_taken as f64/(width*height*samples) as f64)*1e6);
-    println!("samples per second: {}", (width*height*samples) as f64/time_taken);
+    println!(
+        "Finished rendering. Time taken: {}",
+        format_time(time_taken)
+    );
+    println!(
+        "time_per_spp*1e6: {}",
+        (time_taken as f64 / (width * height * samples) as f64) * 1e6
+    );
+    println!(
+        "samples per second: {}",
+        (width * height * samples) as f64 / time_taken
+    );
 }
-

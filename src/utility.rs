@@ -23,17 +23,15 @@ pub fn to_u8(x: f64) -> u8 {
 }
 
 fn gamma_correct(x: f64) -> f64 {
-    x.powf(1.0/2.2)
+    x.powf(1.0 / 2.2)
 }
 
 pub fn format_time(seconds: f64) -> String {
-    let hours: f64 = (seconds/3600.0).floor();
-    let mins: f64 = ((seconds - hours*3600.0)/60.0).floor();
-    let secs: f64 = seconds - mins*60.0;
+    let hours: f64 = (seconds / 3600.0).floor();
+    let mins: f64 = ((seconds - hours * 3600.0) / 60.0).floor();
+    let secs: f64 = seconds - mins * 60.0;
     format!("{:02.0}:{:02.0}:{:02.0}", hours, mins, secs)
-
 }
-
 
 #[cfg(all(feature = "unstable", test))]
 mod bench {

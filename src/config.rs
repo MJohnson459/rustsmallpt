@@ -1,6 +1,5 @@
 use std::path::PathBuf;
-use scene::{Scene, AvailableScenes};
-
+use scene::{AvailableScenes, Scene};
 
 pub struct Config {
     pub explicit_light_sampling: bool,
@@ -15,18 +14,19 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(width: usize, height: usize, samples: usize, scene_name: Option<AvailableScenes>) -> Config {
-
-        let scene =
-            match scene_name {
-                Some(x) => {
-                    Scene::from_available(x)
-                },
-                None => {
-                    println!("Using default scene Floating");
-                    Scene::from_available(AvailableScenes::Floating)
-                }
-            };
+    pub fn new(
+        width: usize,
+        height: usize,
+        samples: usize,
+        scene_name: Option<AvailableScenes>,
+    ) -> Config {
+        let scene = match scene_name {
+            Some(x) => Scene::from_available(x),
+            None => {
+                println!("Using default scene Floating");
+                Scene::from_available(AvailableScenes::Floating)
+            }
+        };
 
         let image_name = format!("{}_{}_{}_{}.png", scene.name, width, height, samples);
         let path = PathBuf::from(&image_name);

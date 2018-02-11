@@ -22,11 +22,26 @@ pub struct Camera {
 impl Camera {
     pub fn new(config: &Config) -> Camera {
         let fov = 0.6;
-        let position = Vec3d{x: 50.0, y: 50.0, z: 260.0};
+        let position = Vec3d {
+            x: 50.0,
+            y: 50.0,
+            z: 260.0,
+        };
 
-        let ray: Ray = Ray{origin: position, direction: Vec3d{x: 0.0, y: -0.042612, z: -1.0}.normalise()};
-        let cx: Vec3d = Vec3d{x:(config.width as f64) * fov/(config.height as f64),y:0.0,z:0.0}; // x direction increment
-        let cy: Vec3d = (cx.cross(ray.direction)).normalise() * fov;                    // y direction increment
+        let ray: Ray = Ray {
+            origin: position,
+            direction: Vec3d {
+                x: 0.0,
+                y: -0.042612,
+                z: -1.0,
+            }.normalise(),
+        };
+        let cx: Vec3d = Vec3d {
+            x: (config.width as f64) * fov / (config.height as f64),
+            y: 0.0,
+            z: 0.0,
+        }; // x direction increment
+        let cy: Vec3d = (cx.cross(ray.direction)).normalise() * fov; // y direction increment
 
         Camera {
             ray: ray,
@@ -40,7 +55,11 @@ impl Camera {
         let height = config.height as f64;
         let mut rng = rand::thread_rng();
 
-        let mut new_value: Vec3d = Vec3d{x:0.0, y: 0.0, z: 0.0};
+        let mut new_value: Vec3d = Vec3d {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        };
 
         if config.tent_filter {
             for sample_y in 0..2 {
@@ -48,15 +67,36 @@ impl Camera {
                     let x_offset = calculate_offset(sample_x as f64);
                     let y_offset = calculate_offset(sample_y as f64);
 
-                    let d = self.cx * ((x + x_offset) / width - 0.5) + self.cy * ((y + y_offset) / height - 0.5) + self.ray.direction;
-                    let rad = radiance(&config, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, true);
+                    let d = self.cx * ((x + x_offset) / width - 0.5)
+                        + self.cy * ((y + y_offset) / height - 0.5)
+                        + self.ray.direction;
+                    let rad = radiance(
+                        &config,
+                        &Ray {
+                            origin: self.ray.origin + d,
+                            direction: d.normalise(),
+                        },
+                        0,
+                        &mut rng,
+                        true,
+                    );
 
                     new_value += rad * 0.25; // 2x2 tent filter so weight is 0.25 each
                 }
             }
         } else {
-            let d: Vec3d = self.cx * (x / width - 0.5) + self.cy * (y / height - 0.5) + self.ray.direction;
-            new_value = radiance(&config, &Ray{origin: self.ray.origin + d, direction: d.normalise()}, 0, &mut rng, true);
+            let d: Vec3d =
+                self.cx * (x / width - 0.5) + self.cy * (y / height - 0.5) + self.ray.direction;
+            new_value = radiance(
+                &config,
+                &Ray {
+                    origin: self.ray.origin + d,
+                    direction: d.normalise(),
+                },
+                0,
+                &mut rng,
+                true,
+            );
         }
 
         if config.explicit_light_sampling {
@@ -67,11 +107,14 @@ impl Camera {
     }
 
     fn single_sample(&self, prev_screen: &mut Vec<Vec3d>, config: &Config, weight: f64) {
-        prev_screen.par_iter_mut().enumerate().for_each(|(i, value)| {
-            let x = i % config.width;
-            let y = i / config.width;
-            *value = *value + self.update_pixel(x as f64, y as f64, config, weight);
-        });
+        prev_screen
+            .par_iter_mut()
+            .enumerate()
+            .for_each(|(i, value)| {
+                let x = i % config.width;
+                let y = i / config.width;
+                *value = *value + self.update_pixel(x as f64, y as f64, config, weight);
+            });
     }
 
     pub fn render_scene(&self, config: &Config) {
@@ -80,20 +123,19 @@ impl Camera {
         for sample in 0..config.samples {
             print!("Rendering {:.4}%\r", 100 * sample / config.samples);
             match io::stdout().flush() {
-                Ok(_v) => {},
-                Err(e) => { println!("{}", e) },
+                Ok(_v) => {}
+                Err(e) => println!("{}", e),
             }
             self.single_sample(&mut screen, &config, weight);
             if config.save_per_sample || sample == config.samples - 1 {
                 let image = to_image(config.width, config.height, &screen);
                 match image.save(config.path.as_path()) {
-                    Ok(_v) => {},
-                    Err(e) => { println!("{}", e) },
+                    Ok(_v) => {}
+                    Err(e) => println!("{}", e),
                 }
             }
         }
     }
-
 }
 
 fn calculate_offset(bias: f64) -> f64 {
@@ -110,7 +152,11 @@ fn calculate_offset(bias: f64) -> f64 {
     (0.5 + dx + bias) / 2.0
 }
 
-fn to_image(width: usize, height: usize, screen: &Vec<Vec3d>) -> ImageBuffer<image::Rgb<u8>, Vec<u8>> {
+fn to_image(
+    width: usize,
+    height: usize,
+    screen: &Vec<Vec3d>,
+) -> ImageBuffer<image::Rgb<u8>, Vec<u8>> {
     assert!(height * width == screen.len());
 
     ImageBuffer::from_fn(width as u32, height as u32, |x, y| {
@@ -131,7 +177,7 @@ mod tests {
         let weight = 1.0;
         let config = Config::new(width, height, 1, Some(AvailableScenes::Floating));
         let camera = Camera::new(&config);
-        let mut prev_screen = vec!(Vec3d::default(); width * height);
+        let mut prev_screen = vec![Vec3d::default(); width * height];
         camera.single_sample(&mut prev_screen, &config, weight);
     }
 }
@@ -151,7 +197,7 @@ mod bench {
         let config = Config::new(width, height, 1, Some(AvailableScenes::Floating));
         let camera = Camera::new(&config);
         b.iter(|| {
-            let mut prev_screen = vec!(Vec3d::default(); width * height);
+            let mut prev_screen = vec![Vec3d::default(); width * height];
             camera.single_sample(&mut prev_screen, &config, 1.0)
         });
     }

@@ -2,5 +2,5 @@
 pub enum ReflectType {
     DIFF,
     SPEC,
-    REFR
+    REFR,
 }
