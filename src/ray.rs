@@ -2,6 +2,7 @@ use std::f64::consts::PI;
 use rand::ThreadRng;
 use rand::Rng;
 use num_traits::identities::Zero;
+use cgmath::InnerSpace;
 
 use config::Config;
 use material::ReflectType;
@@ -33,21 +34,21 @@ fn get_random_direction(rng: &mut ThreadRng, oriented_surface_normal: &Vec3d) ->
 
     let w = *oriented_surface_normal;
     let u = if w.x.abs() > 0.1 {
-        (Vec3d::new( 0.0, 1.0, 0.0).cross(&w))
+        (Vec3d::new( 0.0, 1.0, 0.0).cross(w))
             .normalize()
     } else {
-        (Vec3d::new( 1.0, 0.0, 0.0).cross(&w))
+        (Vec3d::new( 1.0, 0.0, 0.0).cross(w))
             .normalize()
     };
 
-    let v = w.cross(&u);
+    let v = w.cross(u);
 
     (u * random_angle.cos() * r2s + v * random_angle.sin() * r2s + w * (1.0 - random).sqrt())
         .normalize()
 }
 
 fn get_reflected_ray(ray: &Ray, surface_normal: &Vec3d, surface_point: &Vec3d) -> Ray {
-    let dir = ray.direction - (*surface_normal * 2.0 * surface_normal.dot(&ray.direction));
+    let dir = ray.direction - (*surface_normal * 2.0 * surface_normal.dot(ray.direction));
     Ray {
         origin: *surface_point,
         direction: dir,
@@ -56,7 +57,7 @@ fn get_reflected_ray(ray: &Ray, surface_normal: &Vec3d, surface_point: &Vec3d) -
 
 fn diff_radiance(
     config: &Config,
-    ray: &Ray,
+    _: &Ray,
     depth: i32,
     rng: &mut ThreadRng,
     emit: bool,
@@ -80,19 +81,19 @@ fn diff_radiance(
                     // Create random direction towards sphere
                     let sw = sphere.position - *intersect_point;
 
-                    if surface_normal.dot(&sw) >= 0.0 {
+                    if surface_normal.dot(sw) >= 0.0 {
                         let su = ((if sw.x.abs() > 0.1 {
                             Vec3d::new( 0.0, 1.0, 0.0)
                         } else {
                             Vec3d::new( 1.0, 0.0, 0.0)
-                        }).cross(&sw))
+                        }).cross(sw))
                             .normalize();
-                        let sv = sw.cross(&su);
+                        let sv = sw.cross(su);
 
                         let relative_intersect = *intersect_point - sphere.position;
                         let cos_a_max = (1.0
                             - sphere.radius * sphere.radius
-                                / relative_intersect.dot(&relative_intersect))
+                                / relative_intersect.dot(relative_intersect))
                             .sqrt();
 
                         let eps1 = rng.next_f64();
@@ -109,7 +110,7 @@ fn diff_radiance(
                                 // shadow ray
                                 let omega = 2.0 * PI * (1.0 - cos_a_max); // 1 / probability with respect to solid angle
                                 e = e
-                                    + mult(&obj.color, &((sphere.emission * l.dot(surface_normal) * omega)
+                                    + mult(&obj.color, &((sphere.emission * l.dot(*surface_normal) * omega)
                                         * (1.0 / PI))); // 1/pi for brdf
                                                       //println!("e: {:?}", e);
                                 Some(e)
@@ -169,13 +170,13 @@ fn refr_radiance(
     obj: &Sphere,
 ) -> Vec3d {
     let refl_ray = get_reflected_ray(&ray, &surface_normal, &intersect_point);
-    let into = surface_normal.dot(&oriented_surface_normal) > 0.0;
+    let into = surface_normal.dot(*oriented_surface_normal) > 0.0;
 
     let air = 1.0;
     let glass = 1.5;
     let refraction = if into { air / glass } else { glass / air };
 
-    let angle = ray.direction.dot(&oriented_surface_normal);
+    let angle = ray.direction.dot(*oriented_surface_normal);
     let cos2t = 1.0 - refraction * refraction * (1.0 - angle * angle);
     if cos2t < 0.0 {
         // Total internal reflection so all light is reflected (internally)
@@ -194,7 +195,7 @@ fn refr_radiance(
     let c = if into {
         1.0 + angle
     } else {
-        1.0 - refract_dir.dot(&surface_normal)
+        1.0 - refract_dir.dot(*surface_normal)
     };
 
     let total_reflected = normal_reflected + (1.0 - normal_reflected) * c.powi(5);
@@ -287,7 +288,7 @@ pub fn radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, emi
                 ),
                 ReflectType::REFR => {
                     // corrected oriented_surface_normal (ie internal or external intersection)
-                    let oriented_surface_normal = if surface_normal.dot(&ray.direction) < 0.0 {
+                    let oriented_surface_normal = if surface_normal.dot(ray.direction) < 0.0 {
                         // dot product negative if ray is internal
                         surface_normal
                     } else {

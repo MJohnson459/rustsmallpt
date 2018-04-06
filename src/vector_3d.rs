@@ -1,6 +1,6 @@
 use utility::*;
 
-use nalgebra::core::Vector3;
+use cgmath::Vector3;
 
 pub type Vec3d = Vector3<f64>;
 

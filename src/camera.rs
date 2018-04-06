@@ -6,6 +6,7 @@ use std::io::{self, Write};
 use image::ImageBuffer;
 use rand::Rng;
 use rayon::prelude::*;
+use cgmath::InnerSpace;
 
 use ray::Ray;
 use ray::radiance;
@@ -29,7 +30,7 @@ impl Camera {
             direction: Vec3d::new(0.0, -0.042612, -1.0).normalize(),
         };
         let cx: Vec3d = Vec3d::new( (config.width as f64) * fov / (config.height as f64), 0.0, 0.0); // x direction increment
-        let cy: Vec3d = (cx.cross(&ray.direction)).normalize() * fov; // y direction increment
+        let cy: Vec3d = (cx.cross(ray.direction)).normalize() * fov; // y direction increment
 
         Camera {
             ray: ray,

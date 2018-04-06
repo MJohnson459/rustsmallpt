@@ -6,7 +6,7 @@ extern crate rand;
 extern crate rayon;
 #[macro_use] extern crate serde_derive;
 extern crate time;
-extern crate nalgebra;
+extern crate cgmath;
 extern crate num_traits;
 
 use docopt::Docopt;
