@@ -264,13 +264,6 @@ pub fn radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, emi
             let intersect_point = ray.origin + ray.direction * closest_intersect_distance; // point on sphere where intersects
             let surface_normal = (intersect_point - obj.position).normalize(); // surface oriented_surface_normal of intersection point
 
-            // corrected oriented_surface_normal (ie internal or external intersection)
-            let oriented_surface_normal = if surface_normal.dot(&ray.direction) < 0.0 {
-                // dot product negative if ray is internal
-                surface_normal
-            } else {
-                surface_normal * -1.0
-            };
 
             match obj.reflection {
                 ReflectType::DIFF => diff_radiance(
@@ -292,16 +285,26 @@ pub fn radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, emi
                     &intersect_point,
                     &obj,
                 ),
-                ReflectType::REFR => refr_radiance(
-                    &config,
-                    &ray,
-                    depth,
-                    rng,
-                    &surface_normal,
-                    &intersect_point,
-                    &oriented_surface_normal,
-                    &obj,
-                ),
+                ReflectType::REFR => {
+                    // corrected oriented_surface_normal (ie internal or external intersection)
+                    let oriented_surface_normal = if surface_normal.dot(&ray.direction) < 0.0 {
+                        // dot product negative if ray is internal
+                        surface_normal
+                    } else {
+                        surface_normal * -1.0
+                    };
+
+                    refr_radiance(
+                        &config,
+                        &ray,
+                        depth,
+                        rng,
+                        &surface_normal,
+                        &intersect_point,
+                        &oriented_surface_normal,
+                        &obj,
+                    )
+                },
             }
         }
     }
