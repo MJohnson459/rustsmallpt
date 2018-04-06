@@ -35,16 +35,8 @@ mod tests {
 
     #[test]
     fn test_normalize() {
-        let v: Vec3d = Vec3d {
-            x: -0.0,
-            y: 0.001017,
-            z: -0.0,
-        };
-        let w: Vec3d = Vec3d {
-            x: 0.0,
-            y: -0.003064,
-            z: 0.0,
-        }.normalize();
+        let v: Vec3d = Vec3d::new(-0.0, 0.001017, -0.0);
+        let w: Vec3d = Vec3d::new(0.0, -0.003064, 0.0).normalize();
 
         let u: Vec3d = v.normalize();
 
@@ -53,25 +45,13 @@ mod tests {
         println!("u: {:?}", u);
         println!("w: {:?}", w);
 
-        let p: Vec3d = Vec3d {
-            x: 0.0,
-            y: -0.002908,
-            z: 0.0,
-        }.normalize();
+        let p: Vec3d = Vec3d::new( 0.0, -0.002908, 0.0).normalize();
 
         println!("p: {:?}", p);
         assert!((p.length() - 1.0).abs() < 0.001);
 
-        let a = Vec3d {
-            x: 0.003064,
-            y: 0.0,
-            z: -0.003064,
-        }.normalize();
-        let b = Vec3d {
-            x: 0.003064,
-            y: 0.0,
-            z: -0.003064,
-        }.normalize();
+        let a = Vec3d::new( 0.003064, 0.0, -0.003064).normalize();
+        let b = Vec3d::new( 0.003064, 0.0, -0.003064).normalize();
         println!("a: {:?}, a.length: {}", a, a.length());
         println!("b: {:?}, b.length: {}", b, b.length());
         assert!((a.length() - 1.0).abs() < 0.001);
@@ -80,60 +60,28 @@ mod tests {
 
     #[test]
     fn test_cross() {
-        let u: Vec3d = Vec3d {
-            x: 0.0,
-            y: 1.0,
-            z: 0.0,
-        };
-        let v: Vec3d = Vec3d {
-            x: 1.0,
-            y: 0.0,
-            z: 0.0,
-        };
+        let u: Vec3d = Vec3d::new( 0.0, 1.0, 0.0);
+        let v: Vec3d = Vec3d::new( 1.0, 0.0, 0.0);
 
         assert_eq!(
             u.cross(v),
-            Vec3d {
-                x: 0.0,
-                y: 0.0,
-                z: -1.0,
-            }
+            Vec3d::new(0.0, 0.0, -1.0)
         );
         println!("u: {:?}", u);
         println!("v: {:?}", v);
 
-        let w = Vec3d {
-            x: 0.003064,
-            y: 0.999991,
-            z: 0.003064,
-        };
+        let w = Vec3d::new(0.003064, 0.999991, 0.003064);
 
-        let u1 = Vec3d {
-            x: 0.0,
-            y: 1.0,
-            z: 0.0,
-        }.cross(w);
-        let u2 = Vec3d {
-            x: 1.0,
-            y: 0.0,
-            z: 0.0,
-        }.cross(w);
+        let u1 = Vec3d::new(0.0, 1.0, 0.0).cross(w);
+        let u2 = Vec3d::new(1.0, 0.0, 0.0).cross(w);
 
         assert_eq!(
             u1,
-            Vec3d {
-                x: 0.003064,
-                y: 0.0,
-                z: -0.003064,
-            }
+            Vec3d::new(0.003064, 0.0, -0.003064)
         );
         assert_eq!(
             u2,
-            Vec3d {
-                x: 0.0,
-                y: -0.003064,
-                z: 0.999991,
-            }
+            Vec3d::new(0.0, -0.003064, 0.999991)
         );
     }
 
