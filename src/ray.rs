@@ -104,19 +104,18 @@ fn diff_radiance(
                             .normalize();
 
                         // Shoot shadow ray
-                        let (intersects, _, id) = config.scene.intersect(&Ray {
-                            origin: *intersect_point,
-                            direction: l,
-                        });
-
-                        if intersects && id == i {
-                            // shadow ray
-                            let omega = 2.0 * PI * (1.0 - cos_a_max); // 1 / probability with respect to solid angle
-                            e = e
-                                + mult(&obj.color, &((sphere.emission * l.dot(surface_normal) * omega)
-                                    * (1.0 / PI))); // 1/pi for brdf
-                                                  //println!("e: {:?}", e);
-                        }
+                        config.scene.intersect(&Ray {origin: *intersect_point, direction: l})
+                            .and_then(| (_, id) | if id == i {
+                                // shadow ray
+                                let omega = 2.0 * PI * (1.0 - cos_a_max); // 1 / probability with respect to solid angle
+                                e = e
+                                    + mult(&obj.color, &((sphere.emission * l.dot(surface_normal) * omega)
+                                        * (1.0 / PI))); // 1/pi for brdf
+                                                      //println!("e: {:?}", e);
+                                Some(e)
+                            } else {
+                                None
+                            });
                     }
                 }
             });
@@ -172,8 +171,8 @@ fn refr_radiance(
     let refl_ray = get_reflected_ray(&ray, &surface_normal, &intersect_point);
     let into = surface_normal.dot(&oriented_surface_normal) > 0.0;
 
-    let air: f64 = 1.0;
-    let glass: f64 = 1.5;
+    let air = 1.0;
+    let glass = 1.5;
     let refraction = if into { air / glass } else { glass / air };
 
     let angle = ray.direction.dot(&oriented_surface_normal);
@@ -244,67 +243,67 @@ fn refr_radiance(
 }
 
 pub fn radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, emit: bool) -> Vec3d {
-    let (intersects, closest_intersect_distance, id) = config.scene.intersect(ray);
-    if !intersects {
-        // if miss, return black
-        return Vec3d::new(0.0, 0.0, 0.0);
-    }
+    match config.scene.intersect(ray) {
+        None => Vec3d::new(0.0, 0.0, 0.0),
+        Some((closest_intersect_distance, id)) => {
 
-    let obj: &Sphere = &config.scene.spheres[id]; // the hit object
+            let obj: &Sphere = &config.scene.spheres[id]; // the hit object
 
-    // Russian Roulette
-    // Use maximum component (r,g,b) of the surface color
-    let brightest_color = get_brightest_color(&obj.color); // brightest colour
+            // Russian Roulette
+            // Use maximum component (r,g,b) of the surface color
+            let brightest_color = get_brightest_color(&obj.color); // brightest colour
 
-    // Don't do Russian Roulette until after config.roulette_depth
-    // More likely to end on a darker surface
-    if brightest_color == 0.0
-        || (depth > config.roulette_depth && rng.next_f64() >= brightest_color)
-    {
-        return if emit { obj.emission } else { Vec3d::new(0.0, 0.0, 0.0) };
-    }
+            // Don't do Russian Roulette until after config.roulette_depth
+            // More likely to end on a darker surface
+            if brightest_color == 0.0
+                || (depth > config.roulette_depth && rng.next_f64() >= brightest_color)
+            {
+                return if emit { obj.emission } else { Vec3d::new(0.0, 0.0, 0.0) };
+            }
 
-    let intersect_point = ray.origin + ray.direction * closest_intersect_distance; // point on sphere where intersects
-    let surface_normal = (intersect_point - obj.position).normalize(); // surface oriented_surface_normal of intersection point
+            let intersect_point = ray.origin + ray.direction * closest_intersect_distance; // point on sphere where intersects
+            let surface_normal = (intersect_point - obj.position).normalize(); // surface oriented_surface_normal of intersection point
 
-    // corrected oriented_surface_normal (ie internal or external intersection)
-    let oriented_surface_normal = if surface_normal.dot(&ray.direction) < 0.0 {
-        // dot product negative if ray is internal
-        surface_normal
-    } else {
-        surface_normal * -1.0
-    };
+            // corrected oriented_surface_normal (ie internal or external intersection)
+            let oriented_surface_normal = if surface_normal.dot(&ray.direction) < 0.0 {
+                // dot product negative if ray is internal
+                surface_normal
+            } else {
+                surface_normal * -1.0
+            };
 
-    match obj.reflection {
-        ReflectType::DIFF => diff_radiance(
-            &config,
-            &ray,
-            depth,
-            rng,
-            emit,
-            &surface_normal,
-            &intersect_point,
-            &obj,
-        ),
-        ReflectType::SPEC => spec_radiance(
-            &config,
-            &ray,
-            depth,
-            rng,
-            &surface_normal,
-            &intersect_point,
-            &obj,
-        ),
-        ReflectType::REFR => refr_radiance(
-            &config,
-            &ray,
-            depth,
-            rng,
-            &surface_normal,
-            &intersect_point,
-            &oriented_surface_normal,
-            &obj,
-        ),
+            match obj.reflection {
+                ReflectType::DIFF => diff_radiance(
+                    &config,
+                    &ray,
+                    depth,
+                    rng,
+                    emit,
+                    &surface_normal,
+                    &intersect_point,
+                    &obj,
+                ),
+                ReflectType::SPEC => spec_radiance(
+                    &config,
+                    &ray,
+                    depth,
+                    rng,
+                    &surface_normal,
+                    &intersect_point,
+                    &obj,
+                ),
+                ReflectType::REFR => refr_radiance(
+                    &config,
+                    &ray,
+                    depth,
+                    rng,
+                    &surface_normal,
+                    &intersect_point,
+                    &oriented_surface_normal,
+                    &obj,
+                ),
+            }
+        }
     }
 }
 

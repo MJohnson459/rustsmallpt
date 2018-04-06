@@ -262,7 +262,7 @@ impl Scene {
         }
     }
 
-    pub fn intersect(&self, ray: &Ray) -> (bool, f64, usize) {
+    pub fn intersect(&self, ray: &Ray) -> Option<(f64, usize)> {
         let inf = 1e20;
         let mut closest_distance: f64 = inf;
         let mut id: usize = 0;
@@ -281,6 +281,11 @@ impl Scene {
                 id = i;
             }
         }
-        (closest_distance < inf, closest_distance, id)
+
+        if closest_distance < inf {
+            Some((closest_distance, id))
+        } else {
+            None
+        }
     }
 }
