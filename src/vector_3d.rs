@@ -4,14 +4,6 @@ use cgmath::Vector3;
 
 pub type Vec3d = Vector3<f64>;
 
-pub fn mult(vec1: &Vec3d, vec2: &Vec3d) -> Vec3d {
-    Vec3d::new(
-        vec1.x * vec2.x,
-        vec1.y * vec2.y,
-        vec1.z * vec2.z,
-        )
-}
-
 
 pub fn from_rgb(hex: u32) -> Vec3d {
     Vec3d::new(

@@ -2,12 +2,12 @@ use std::f64::consts::PI;
 use rand::ThreadRng;
 use rand::Rng;
 use num_traits::identities::Zero;
-use cgmath::InnerSpace;
+use cgmath::{InnerSpace, ElementWise};
 
 use config::Config;
 use material::ReflectType;
 use sphere::Sphere;
-use vector_3d::{Vec3d, mult};
+use vector_3d::Vec3d;
 
 // ----------- Ray --------------
 
@@ -110,8 +110,8 @@ fn diff_radiance(
                                 // shadow ray
                                 let omega = 2.0 * PI * (1.0 - cos_a_max); // 1 / probability with respect to solid angle
                                 e = e
-                                    + mult(&obj.color, &((sphere.emission * l.dot(*surface_normal) * omega)
-                                        * (1.0 / PI))); // 1/pi for brdf
+                                    + obj.color.mul_element_wise(sphere.emission * l.dot(*surface_normal) * omega)
+                                        * (1.0 / PI); // 1/pi for brdf
                                                       //println!("e: {:?}", e);
                                 Some(e)
                             } else {
@@ -126,8 +126,7 @@ fn diff_radiance(
 
     let random_direction = get_random_direction(rng, &surface_normal);
     return if emit { obj.emission + e } else { e }
-        + mult(&obj.color,
-            &radiance(
+        + obj.color.mul_element_wise(radiance(
                 &config,
                 &Ray {
                     origin: *intersect_point,
@@ -149,8 +148,8 @@ fn spec_radiance(
     obj: &Sphere,
 ) -> Vec3d {
     obj.emission
-        + mult(&obj.color,
-            &radiance(
+        + obj.color.mul_element_wise(
+            radiance(
                 &config,
                 &get_reflected_ray(&ray, &surface_normal, &intersect_point),
                 depth + 1,
@@ -181,7 +180,7 @@ fn refr_radiance(
     if cos2t < 0.0 {
         // Total internal reflection so all light is reflected (internally)
         return obj.emission
-            + mult(&obj.color, &radiance(&config, &refl_ray, depth + 1, rng, true));
+            + obj.color.mul_element_wise(radiance(&config, &refl_ray, depth + 1, rng, true));
     }
 
     let refract_dir = (ray.direction * refraction
@@ -207,7 +206,7 @@ fn refr_radiance(
     let refract_weight = total_refracted / (1.0 - reflect_probability);
 
     return obj.emission
-        + mult(&obj.color, &
+        + obj.color.mul_element_wise(
             // if depth is shallow, we want to sample everything
             if depth > 2 {
                 if rng.next_f64() < reflect_probability {
