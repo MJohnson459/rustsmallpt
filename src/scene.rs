@@ -267,9 +267,16 @@ impl Scene {
         let mut closest_distance: f64 = inf;
         let mut id: usize = 0;
 
-        for i in (0..self.spheres.len()).rev() {
-            let distance = self.spheres[i].intersect(ray);
-            if distance != 0.0 && distance < closest_distance {
+        let intersections = self.spheres.iter().enumerate()
+            .filter_map(|(i, sphere)| {
+                match sphere.intersect(ray) {
+                    Some(d) => Some((i, d)),
+                    None => None,
+                }
+            });
+
+        for (i, distance) in intersections {
+            if distance < closest_distance {
                 closest_distance = distance;
                 id = i;
             }

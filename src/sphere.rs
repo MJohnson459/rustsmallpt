@@ -14,7 +14,7 @@ pub struct Sphere {
 
 impl Sphere {
     // return distance 0.0 if nohit
-    pub fn intersect(&self, ray: &Ray) -> f64 {
+    pub fn intersect(&self, ray: &Ray) -> Option<f64> {
         // Solve t^2*d.d + 2*t*(o-p).d + (o-p).(o-p)-R^2 = 0
         let op: Vec3d = self.position - ray.origin; // p is the sphere center (C)
         let eps: f64 = 1e-4; // eps is a small fudge factor
@@ -22,7 +22,7 @@ impl Sphere {
         let mut det: f64 = b * b - op.dot(&op) + self.radius * self.radius; //(b^2-4ac)/4: a=1 because ray normalized
         if det < 0.0 {
             // ray missed sphere
-            return 0.0;
+            return None;
         } else {
             det = det.sqrt();
         }
@@ -31,11 +31,11 @@ impl Sphere {
         let t1 = b - det;
         let t2 = b + det;
         if t1 > eps {
-            return t1;
+            return Some(t1);
         } else if t2 > eps {
-            return t2;
+            return Some(t2);
         } else {
-            return 0.0;
+            return None;
         }
     }
 }
