@@ -4,9 +4,10 @@ extern crate docopt;
 extern crate image;
 extern crate rand;
 extern crate rayon;
-#[macro_use]
-extern crate serde_derive;
+#[macro_use] extern crate serde_derive;
 extern crate time;
+extern crate nalgebra;
+extern crate num_traits;
 
 use docopt::Docopt;
 

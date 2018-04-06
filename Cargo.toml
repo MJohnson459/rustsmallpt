@@ -7,15 +7,18 @@ authors = ["MJohnson459 <mjohnson459@gmail.com>"]
 unstable = []
 
 [dependencies]
-rand = "*"
-threadpool = "*"
-num_cpus = "*"
-docopt = "*"
-image = "*"
-time = "*"
-rayon = "*"
-serde = "1.0.27"
-serde_derive = "1.0.27"
+rand = "0.4"
+threadpool = "1.7"
+num_cpus = "1.8"
+docopt = "0.8"
+image = "0.18"
+time = "0.1"
+rayon = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
+nalgebra = "0.14"
+num-traits = "0.2"
+
 
 [profile.release]
 debug = true

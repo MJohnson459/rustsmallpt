@@ -10,7 +10,7 @@ use rayon::prelude::*;
 use ray::Ray;
 use ray::radiance;
 use utility::*;
-use vector_3d::Vec3d;
+use vector_3d::{Vec3d, vec_clamp};
 use config::Config;
 
 pub struct Camera {
@@ -22,26 +22,14 @@ pub struct Camera {
 impl Camera {
     pub fn new(config: &Config) -> Camera {
         let fov = 0.6;
-        let position = Vec3d {
-            x: 50.0,
-            y: 50.0,
-            z: 260.0,
-        };
+        let position = Vec3d::new( 50.0, 50.0, 260.0);
 
         let ray: Ray = Ray {
             origin: position,
-            direction: Vec3d {
-                x: 0.0,
-                y: -0.042612,
-                z: -1.0,
-            }.normalise(),
+            direction: Vec3d::new(0.0, -0.042612, -1.0).normalize(),
         };
-        let cx: Vec3d = Vec3d {
-            x: (config.width as f64) * fov / (config.height as f64),
-            y: 0.0,
-            z: 0.0,
-        }; // x direction increment
-        let cy: Vec3d = (cx.cross(ray.direction)).normalise() * fov; // y direction increment
+        let cx: Vec3d = Vec3d::new( (config.width as f64) * fov / (config.height as f64), 0.0, 0.0); // x direction increment
+        let cy: Vec3d = (cx.cross(&ray.direction)).normalize() * fov; // y direction increment
 
         Camera {
             ray: ray,
@@ -55,11 +43,7 @@ impl Camera {
         let height = config.height as f64;
         let mut rng = rand::thread_rng();
 
-        let mut new_value: Vec3d = Vec3d {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-        };
+        let mut new_value: Vec3d = Vec3d::new( 0.0, 0.0, 0.0);
 
         if config.tent_filter {
             for sample_y in 0..2 {
@@ -74,7 +58,7 @@ impl Camera {
                         &config,
                         &Ray {
                             origin: self.ray.origin + d,
-                            direction: d.normalise(),
+                            direction: d.normalize(),
                         },
                         0,
                         &mut rng,
@@ -91,7 +75,7 @@ impl Camera {
                 &config,
                 &Ray {
                     origin: self.ray.origin + d,
-                    direction: d.normalise(),
+                    direction: d.normalize(),
                 },
                 0,
                 &mut rng,
@@ -100,7 +84,7 @@ impl Camera {
         }
 
         if config.explicit_light_sampling {
-            new_value.clamp() * weight
+            vec_clamp(&new_value) * weight
         } else {
             new_value * weight
         }
@@ -119,7 +103,7 @@ impl Camera {
 
     pub fn render_scene(&self, config: &Config) {
         let weight = 1.0 / config.samples as f64;
-        let mut screen = vec![Vec3d::default(); config.width * config.height];
+        let mut screen = vec![Vec3d::new(0.0, 0.0, 0.0); config.width * config.height];
         for sample in 0..config.samples {
             print!("Rendering {:.4}%\r", 100 * sample / config.samples);
             match io::stdout().flush() {
@@ -177,7 +161,7 @@ mod tests {
         let weight = 1.0;
         let config = Config::new(width, height, 1, Some(AvailableScenes::Floating));
         let camera = Camera::new(&config);
-        let mut prev_screen = vec![Vec3d::default(); width * height];
+        let mut prev_screen = vec![Vec3d::new(0.0, 0.0, 0.0); width * height];
         camera.single_sample(&mut prev_screen, &config, weight);
     }
 }
@@ -197,7 +181,7 @@ mod bench {
         let config = Config::new(width, height, 1, Some(AvailableScenes::Floating));
         let camera = Camera::new(&config);
         b.iter(|| {
-            let mut prev_screen = vec![Vec3d::default(); width * height];
+            let mut prev_screen = vec![Vec3d::new(0.0, 0.0, 0.0); width * height];
             camera.single_sample(&mut prev_screen, &config, 1.0)
         });
     }
