@@ -165,17 +165,24 @@ fn refr_radiance(
     rng: &mut ThreadRng,
     surface_normal: &Vec3d,
     intersect_point: &Vec3d,
-    oriented_surface_normal: &Vec3d,
     obj: &Sphere,
 ) -> Vec3d {
+    // corrected oriented_surface_normal (ie internal or external intersection)
+    let oriented_surface_normal: Vec3d = if surface_normal.dot(ray.direction) < 0.0 {
+        // dot product negative if ray is internal
+        *surface_normal
+    } else {
+        surface_normal * -1.0
+    };
+
     let refl_ray = get_reflected_ray(&ray, &surface_normal, &intersect_point);
-    let into = surface_normal.dot(*oriented_surface_normal) > 0.0;
+    let into = surface_normal.dot(oriented_surface_normal) > 0.0;
 
     let air = 1.0;
     let glass = 1.5;
     let refraction = if into { air / glass } else { glass / air };
 
-    let angle = ray.direction.dot(*oriented_surface_normal);
+    let angle = ray.direction.dot(oriented_surface_normal);
     let cos2t = 1.0 - refraction * refraction * (1.0 - angle * angle);
     if cos2t < 0.0 {
         // Total internal reflection so all light is reflected (internally)
@@ -286,14 +293,6 @@ pub fn radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, emi
                     &obj,
                 ),
                 ReflectType::REFR => {
-                    // corrected oriented_surface_normal (ie internal or external intersection)
-                    let oriented_surface_normal = if surface_normal.dot(ray.direction) < 0.0 {
-                        // dot product negative if ray is internal
-                        surface_normal
-                    } else {
-                        surface_normal * -1.0
-                    };
-
                     refr_radiance(
                         &config,
                         &ray,
@@ -301,7 +300,6 @@ pub fn radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, emi
                         rng,
                         &surface_normal,
                         &intersect_point,
-                        &oriented_surface_normal,
                         &obj,
                     )
                 },
