@@ -4,7 +4,7 @@ extern crate rayon;
 
 use std::io::{self, Write};
 use image::ImageBuffer;
-use rand::Rng;
+use rand::prelude::*;
 use rayon::prelude::*;
 use cgmath::InnerSpace;
 
@@ -42,7 +42,7 @@ impl Camera {
     fn update_pixel(&self, x: f64, y: f64, config: &Config, weight: f64) -> Vec3d {
         let width = config.width as f64;
         let height = config.height as f64;
-        let mut rng = rand::thread_rng();
+        let mut rng = thread_rng();
 
         let mut new_value: Vec3d = Vec3d::new( 0.0, 0.0, 0.0);
 
@@ -124,10 +124,10 @@ impl Camera {
 }
 
 fn calculate_offset(bias: f64) -> f64 {
-    let mut rng = rand::thread_rng();
+    let mut rng = thread_rng();
     // Tent filter
     let dx: f64;
-    let x = 2.0 * rng.next_f64();
+    let x: f64 = 2.0 * rng.gen::<f64>();
     if x < 1.0 {
         dx = x.sqrt() - 1.0;
     } else {

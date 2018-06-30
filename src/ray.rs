@@ -28,8 +28,8 @@ fn get_brightest_color(color: &Vec3d) -> f64 {
 }
 
 fn get_random_direction(rng: &mut ThreadRng, oriented_surface_normal: &Vec3d) -> Vec3d {
-    let random_angle = 2.0 * PI * rng.next_f64();
-    let random = rng.next_f64();
+    let random_angle: f64 = 2.0 * PI * rng.gen::<f64>();
+    let random: f64 = rng.gen();
     let r2s = random.sqrt();
 
     let w = *oriented_surface_normal;
@@ -96,8 +96,8 @@ fn diff_radiance(
                                 / relative_intersect.dot(relative_intersect))
                             .sqrt();
 
-                        let eps1 = rng.next_f64();
-                        let eps2 = rng.next_f64();
+                        let eps1: f64 = rng.gen();
+                        let eps2: f64 = rng.gen();
                         let cos_a = 1.0 - eps1 + eps1 * cos_a_max;
                         let sin_a = (1.0 - cos_a * cos_a).sqrt();
                         let phi = 2.0 * PI * eps2;
@@ -216,7 +216,7 @@ fn refr_radiance(
         + obj.color.mul_element_wise(
             // if depth is shallow, we want to sample everything
             if depth > 2 {
-                if rng.next_f64() < reflect_probability {
+                if rng.gen::<f64>() < reflect_probability {
                     // reflect ray
                     radiance(&config, &refl_ray, depth + 1, rng, true) * reflect_weight
                 } else {
@@ -263,7 +263,7 @@ pub fn radiance(config: &Config, ray: &Ray, depth: i32, rng: &mut ThreadRng, emi
             // Don't do Russian Roulette until after config.roulette_depth
             // More likely to end on a darker surface
             if brightest_color == 0.0
-                || (depth > config.roulette_depth && rng.next_f64() >= brightest_color)
+                || (depth > config.roulette_depth && rng.gen::<f64>() >= brightest_color)
             {
                 return if emit { obj.emission } else { Vec3d::new(0.0, 0.0, 0.0) };
             }
