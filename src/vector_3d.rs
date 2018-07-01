@@ -13,7 +13,6 @@ pub fn from_rgb(hex: u32) -> Vec3d {
     )
 }
 
-
 pub fn vec_clamp(vec: &Vec3d) -> Vec3d {
     Vec3d::new(
         clamp(vec.x),
@@ -31,58 +30,6 @@ mod tests {
         let rgb = from_rgb(0xFF0000);
         let vec = Vec3d::new(1.0, 0.0, 0.0);
         assert_eq!(rgb, vec);
-    }
-
-    #[test]
-    fn test_normalize() {
-        let v: Vec3d = Vec3d::new(-0.0, 0.001017, -0.0);
-        let w: Vec3d = Vec3d::new(0.0, -0.003064, 0.0).normalize();
-
-        let u: Vec3d = v.normalize();
-
-        assert!((u.length() - 1.0).abs() < 0.001);
-        assert!((w.length() - 1.0).abs() < 0.001);
-        println!("u: {:?}", u);
-        println!("w: {:?}", w);
-
-        let p: Vec3d = Vec3d::new( 0.0, -0.002908, 0.0).normalize();
-
-        println!("p: {:?}", p);
-        assert!((p.length() - 1.0).abs() < 0.001);
-
-        let a = Vec3d::new( 0.003064, 0.0, -0.003064).normalize();
-        let b = Vec3d::new( 0.003064, 0.0, -0.003064).normalize();
-        println!("a: {:?}, a.length: {}", a, a.length());
-        println!("b: {:?}, b.length: {}", b, b.length());
-        assert!((a.length() - 1.0).abs() < 0.001);
-        assert!((b.length() - 1.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_cross() {
-        let u: Vec3d = Vec3d::new( 0.0, 1.0, 0.0);
-        let v: Vec3d = Vec3d::new( 1.0, 0.0, 0.0);
-
-        assert_eq!(
-            u.cross(v),
-            Vec3d::new(0.0, 0.0, -1.0)
-        );
-        println!("u: {:?}", u);
-        println!("v: {:?}", v);
-
-        let w = Vec3d::new(0.003064, 0.999991, 0.003064);
-
-        let u1 = Vec3d::new(0.0, 1.0, 0.0).cross(w);
-        let u2 = Vec3d::new(1.0, 0.0, 0.0).cross(w);
-
-        assert_eq!(
-            u1,
-            Vec3d::new(0.003064, 0.0, -0.003064)
-        );
-        assert_eq!(
-            u2,
-            Vec3d::new(0.0, -0.003064, 0.999991)
-        );
     }
 
     /*#[test]
